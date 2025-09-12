@@ -1,12 +1,11 @@
 name: Build and Release EXE
 
 on:
-  push:
-    tags:
-      - 'app*'
-    branches:
-      - main
-      
+  # push:
+  #   tags:
+  #     - 'app*'
+  #   branches:
+  #     - main      
   workflow_dispatch:   
 
 jobs:
