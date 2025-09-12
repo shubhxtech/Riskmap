@@ -1,0 +1,39 @@
+name: Upload requirements.txt as Release Asset
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/requirements.txt'
+
+permissions:
+  contents: write   # needed for release upload
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: requirements-${{ github.run_number }}
+          name: "Requirements Release ${{ github.run_number }}"
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload requirements.txt as release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: requirements-${{ github.run_number }}
+          files: src/requirements.txt   # <-- adjust path if needed
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
