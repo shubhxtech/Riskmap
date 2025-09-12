@@ -50,6 +50,6 @@ jobs:
           name: "Nightly Build"
           files: app.zip
           draft: false
-          prerelease: flase
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

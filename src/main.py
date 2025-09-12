@@ -18,7 +18,7 @@ logger.log_status("Starting App")
 # --- Configuration ---
 import config_  # Custom config module
 config = config_.Config(logger, resolve_path("config_.ini"))
-print(resolve_path("config_.ini"))
+logger.log_status(resolve_path("config_.ini"))
 # --- Model Download ---
 import model_download
 from pathlib import Path
