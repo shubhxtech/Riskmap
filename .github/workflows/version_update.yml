@@ -1,9 +1,9 @@
 name: Update Version
 
 on:
-  # push:
-  # release:
-  #   types: [published, edited]
+  push:
+  release:
+    types: [published, edited]
   workflow_dispatch:
 
 permissions:
