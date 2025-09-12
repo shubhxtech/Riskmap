@@ -19,21 +19,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Create Release
+      - name: Ensure "requirements" release exists
         id: create_release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: requirements-${{ github.run_number }}
-          name: "Requirements Release ${{ github.run_number }}"
+          tag_name: requirements   # Fixed tag
+          name: "Requirements Release"
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload requirements.txt as release asset
+      - name: Upload requirements.txt asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: requirements-${{ github.run_number }}
-          files: requirements.txt
+          tag_name: requirements   # Upload to the same release
+          files: src/requirements.txt
+          overwrite: true          # Replace if it already exists
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
