@@ -34,7 +34,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: requirements   # Upload to the same release
-          files: src/requirements.txt
-          overwrite: true          # Replace if it already exists
+          files: requirements.txt
+          overwrite_files: true          # Replace if it already exists
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
