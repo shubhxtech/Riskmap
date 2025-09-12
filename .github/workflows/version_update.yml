@@ -1,0 +1,64 @@
+name: Update Version
+
+on:
+  # push:
+  # release:
+  #   types: [published, edited]
+  workflow_dispatch:
+jobs:
+  bump-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Detect changed files
+        id: changes
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            requirements:
+              - 'src/requirements.txt'
+            config:
+              - 'src/config_.ini'
+            model-data:
+              - 'src/model_data.json'
+
+      - name: Load version.json
+        id: version
+        run: |
+          major=$(jq -r '.major' version.json)
+          minor=$(jq -r '.minor' version.json)
+          patch=$(jq -r '.patch' version.json)
+
+          echo "major=$major" >> $GITHUB_ENV
+          echo "minor=$minor" >> $GITHUB_ENV
+          echo "patch=$patch" >> $GITHUB_ENV
+
+      - name: Bump version
+        run: |
+          new_minor=$minor
+          new_patch=$patch
+
+          if [[ "${{ steps.changes.outputs.requirements }}" == "true" || \
+                "${{ steps.changes.outputs.config }}" == "true"    || \
+                "${{ steps.changes.outputs.model-data }}" == "true" ]]; then
+              new_minor=$((minor + 1))
+              new_patch=0   # reset patch if minor changes
+              echo "Minor bumped!"
+          else
+              new_patch=$((patch + 1))
+              echo "Patch bumped!"
+          fi
+
+          # Save new version.json
+          jq ".major=$major | .minor=$new_minor | .patch=$new_patch" version.json > version.json.tmp
+          mv version.json.tmp version.json
+
+          echo "new_minor=$new_minor" >> $GITHUB_ENV
+          echo "new_patch=$new_patch" >> $GITHUB_ENV
+
+      - name: Commit updated version.json
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: bump version to ${{ env.major }}.${{ env.new_minor }}.${{ env.new_patch }}"
+          file_pattern: version.json
