@@ -8,6 +8,9 @@ on:
   #     - main      
   workflow_dispatch:   
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
@@ -40,8 +43,6 @@ jobs:
   release:
     runs-on: windows-latest
     needs: build
-    if: github.ref == 'refs/heads/main'
-
     steps:
       - name: Download build artifact
         uses: actions/download-artifact@v4
@@ -52,8 +53,10 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ github.run_number }}
-          name: "Release ${{ github.run_number }}"
+          tag_name: official
+          name: "Exe Release"
           files: dist/RiskMap.exe
+          draft: false
+          prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
