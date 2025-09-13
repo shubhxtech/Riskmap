@@ -42,7 +42,7 @@ Name: "preserve"; Description: "Preserve .env, .ini, and user data"; Flags: unch
 ; Local helper files
 Source: "app.ico"; DestDir: "{app}"; Flags: ignoreversion
 Source: "LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
-Source: "EULA.txt"; DestDir: "{app}" ; Flags: isreadme
+Source: "EULA.txt"; DestDir: "{app}" ; Flags: ignoreversion
 Source: "tools\7za.exe"; DestDir: "{tmp}"; Flags: dontcopy;
 Source: "tools\get-pip.py"; DestDir: "{tmp}"; Flags: dontcopy;
 Source: "tools\python-3.10.9-embed-amd64.zip"; Destdir: "{tmp}";
@@ -192,7 +192,7 @@ begin
     LogToFile('App will live in ' + ExpandConstant('{app}'));
     ExtractTemporaryFile('7za.exe');
     ExtractTemporaryFile('python-3.10.9-embed-amd64.zip');
-    if FileCopy(ExpandConstant('{tmp}\requirements.txt'), ExpandConstant('{app}\requirements.txt'), True) then LogToFile('requirements.txt was copied from temp');
+    if CopyFile(ExpandConstant('{tmp}\requirements.txt'), ExpandConstant('{app}\requirements.txt'), True) then LogToFile('requirements.txt was copied from temp');
     LogToFile('== Installer main sequence ==');
 
     // sanity checks
