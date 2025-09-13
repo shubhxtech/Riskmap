@@ -1,12 +1,12 @@
 import configparser
 from pathlib import Path
-import AppLogger
+from .AppLogger import Logger
 from utils import current_w_folder, resolve_path
 import sys, os, json
 
 
 class Config:
-    def __init__(self, logger : AppLogger.Logger, path=None):
+    def __init__(self, logger : Logger, path=None):
         """
         Initializes the config object by reading the configuration file and ensuring its validity.
         Sets up a Logger for logging configuration issues.
@@ -496,8 +496,7 @@ class Config:
                 json.dump(data, f)
             return True
         except Exception as e:
-            self.log = AppLogger.Logger(__name__)
-            self.log.log_exception(f'An exception occured while setting new model data. {e}')
+            self.logger.log_exception(f'An exception occured while setting new model data. {e}')
 
     def set_save_folder(self, folder):
         section_name = "Paths"
@@ -521,4 +520,4 @@ class Config:
         self.set(section=section_name, option="input_dir", value=folder)
 
 if __name__ == "__main__":
-    Config(AppLogger.Logger(__name__))
+    Config(Logger(__name__))

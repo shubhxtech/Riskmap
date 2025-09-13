@@ -10,9 +10,9 @@ from PyQt5.QtWidgets import (
     QCheckBox, QProgressBar
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QObject, pyqtSlot
-from config_ import Config
-from AppLogger import Logger
-from utils import cleanup_process, resolve_path
+from .config_ import Config
+from .AppLogger import Logger
+from .utils import cleanup_process, resolve_path
 from tensorflow.keras.preprocessing import image
 
 class DuplicateClassifier:

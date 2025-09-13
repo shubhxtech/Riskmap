@@ -7,17 +7,17 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtGui import QColor
 from PyQt5.QtWebChannel import QWebChannel
 from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal, QThread, QTimer, Qt
-from AppLogger import Logger
+from .AppLogger import Logger
 import json
-from config_ import Config
+from .config_ import Config
 import requests
 import os, json
 import sqlite3
-from Tile_Downloader import download_panorama
+from .Tile_Downloader import download_panorama
 from dotenv import load_dotenv
-from utils import resolve_path
+from .utils import resolve_path
 from pathlib import Path
-from Metadata_scanner_grid_search import StreetViewDensityScanner
+from .Metadata_scanner_grid_search import StreetViewDensityScanner
 
 class CoordinateReceiver(QObject):
     # Emitted when JavaScript sends coordinates: list of [lat, lng] or list of lists

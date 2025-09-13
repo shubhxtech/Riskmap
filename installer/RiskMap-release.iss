@@ -68,29 +68,19 @@ const
 var
   LogFile: String;
 
-procedure LogToFile(const Msg: String);
+procedure LogToFile(const Msg: string);
 var
-  F: TextFile;
+  Timestamp: string;
 begin
-  Log(Msg);
+  Log(Msg); // setup log
   try
-    AssignFile(F, LogFile);
-    if FileExists(LogFile) then
-      Append(F)
-    else
-      Rewrite(F);
-    Writeln(F, FormatDateTime('yyyy-mm-dd hh:nn:ss', Now) + ' - ' + Msg);
-    CloseFile(F);
+    Timestamp := GetDateTimeString('yyyy-mm-dd hh:nn:ss', '-', ':');
+    SaveStringToFile(LogFile, Timestamp + ' - ' + Msg + #13#10, True);
   except
     { ignore logging errors }
   end;
 end;
 
-procedure InitializeWizard;
-begin
-  LogFile := ExpandConstant('{app}\install.log');
-  LogToFile('Installer initialized.');
-end;
 
 function RunCommandWithRetries(const Program_, Params: string; Retries: Integer; ShowCmd: Integer): Boolean;
 var
@@ -153,6 +143,10 @@ var
 begin
   if CurStep = ssInstall then
   begin
+  
+    LogFile := ExpandConstant('{app}\install.log');
+    LogToFile('Installer initialized.');
+    
     LogToFile('== Installer main sequence (IDP only) ==');
     // Ensure helper binaries are extracted to {tmp} before usage
     try

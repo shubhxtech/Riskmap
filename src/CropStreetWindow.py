@@ -7,8 +7,8 @@ from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLab
 from PyQt5.QtGui import QPixmap, QImage, QPen, QPainter
 from PyQt5.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, QPointF, Qt
 from config_ import Config
-from AppLogger import Logger
-from utils import ensure_directory_exists, save_image, resolve_path
+from .AppLogger import Logger
+from .utils import ensure_directory_exists, save_image, resolve_path
 
 
 ### Show what types of photo types are allowed in the file browse dialog

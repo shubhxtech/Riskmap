@@ -5,7 +5,7 @@ from logging.handlers import RotatingFileHandler
 from datetime import datetime
 import os, sys
 from typing import Literal
-from utils import resolve_path
+from .utils import resolve_path
 
 class Logger:
     def __init__(self, name):

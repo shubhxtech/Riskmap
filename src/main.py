@@ -6,26 +6,26 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
-from utils import resolve_path
+from .utils import resolve_path
 
 ## We need to download PyQT and PyQt5.QtWebEngineWidgets seperately
 
 # --- Setup Logging ---
-import AppLogger
-logger = AppLogger.Logger(__name__)
+from .AppLogger import Logger
+logger = Logger(__name__)
 logger.log_status("Starting App")
 
 # --- Configuration ---
-import config_  # Custom config module
-config = config_.Config(logger, resolve_path("config_.ini"))
+from .config_ import Config  # Custom config module
+config = Config(logger, resolve_path("config_.ini"))
 logger.log_status(resolve_path("config_.ini"))
 # --- Model Download ---
-import model_download
+from .model_download import download_model
 from pathlib import Path
 
 # --- Check model path ---
 if not config.get_model_save_folder().exists():
-    model_download.download_model(logger, config) #Downloading faster_rcnn as default
+    download_model(logger, config) #Downloading faster_rcnn as default
 
 # --- Check if map index exists ---
 if not config.get_map_index_path().exists():
@@ -36,13 +36,13 @@ if not config.get_map_index_path().exists():
 
 # --- Import refactored Qt versions of feature windows ---
 a = time.time()
-from ApiWindow import ApiWindow
-from CropStreetWindow import CropWindow 
-from BuildingDetectionWindow import BuildingDetectionWindow
-from Classification import ClassificationWindow
-from Duplicates_Better import DuplicatesWindow
-from model_training import Trainer
-print(time.time()-a)
+from .ApiWindow import ApiWindow
+from .CropStreetWindow import CropWindow 
+from .BuildingDetectionWindow import BuildingDetectionWindow
+from .Classification import ClassificationWindow
+from .Duplicates_Better import DuplicatesWindow
+from .model_training import Trainer
+logger.log_status(f'Time taken to import modules: {time.time()-a}.')
 
 logger.log_status('Modules imported. Starting Main App')
 
@@ -172,7 +172,7 @@ class MainApp(QMainWindow):
         self.move(x, y)
 
     def show_geoscatter(self):
-        from geoscatter import GeoAnalysis
+        from .geoscatter import GeoAnalysis
         geoscatter_path = resolve_path('Scatter')
         Geo = GeoAnalysis(config, logger)
         Geo.geoscatter(geoscatter_path)
@@ -303,7 +303,7 @@ class MainApp(QMainWindow):
         
 
     
-    def show_config(root, config: config_.Config):
+    def show_config(root, config: Config):
         # Create a dialog window as the settings panel
         window = QDialog(root)
         window.setObjectName("settings")

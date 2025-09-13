@@ -1,8 +1,8 @@
 import os
 import requests
 import tarfile
-from config_ import Config
-from AppLogger import Logger
+from .config_ import Config
+from .AppLogger import Logger
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 from requests.exceptions import Timeout, HTTPError
 

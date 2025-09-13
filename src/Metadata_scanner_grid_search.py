@@ -14,10 +14,10 @@ from PyQt5.QtCore import QUrl, QTimer, pyqtSignal, QThread
 from PyQt5.QtWebEngineWidgets import QWebEngineView
 import folium
 
-from AppLogger import Logger
+from .AppLogger import Logger
 logger = Logger(__name__)
 
-from config_ import Config
+from .config_ import Config
 config = Config(logger=logger)
 
 # Settings

@@ -1,9 +1,9 @@
 from PyQt5 import QtWidgets, QtCore
 from pathlib import Path
-from config_ import Config
-from AppLogger import Logger
-from BuildingDetection import ObjectDetectionProcessor
-from utils import cleanup_process
+from .config_ import Config
+from .AppLogger import Logger
+from .BuildingDetection import ObjectDetectionProcessor
+from .utils import cleanup_process
 import time
 
 class _DetectionWorker(QtCore.QThread):
