@@ -53,13 +53,13 @@ Source: "tools\python-3.10.9-embed-amd64.zip"; Destdir: "{tmp}";
 
 [Icons]
 ; Main app shortcut -> points to installed exe
-Name: "{group}\{#AppName}"; Filename: "{app}\runner.vbs"
+Name: "{group}\{#AppName}"; Filename: "{app}\src\run_app.vbs"; IconFilename: "{app}\app.ico"
 
 ; Desktop shortcut (optional, controlled by user during install)
-Name: "{userdesktop}\{#AppName}"; Filename: "{app}\runner.vbs"; Tasks: desktopicon
+Name: "{userdesktop}\{#AppName}"; Filename: "{app}\src\run_app.vbs"; Tasks: desktopicon; IconFilename: "{app}\app.ico"
 
 ; Uninstall shortcut
-Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"
+Name: "{group}\Uninstall {#AppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\app.ico"
 
 [Code]
 const

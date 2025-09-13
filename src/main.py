@@ -1,4 +1,6 @@
 import sys, time, os
+sys.path.append(os.path.dirname(__file__))
+
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QTabWidget, QVBoxLayout,
     QTextEdit, QLabel, QPushButton, QScrollArea, QGroupBox,
@@ -6,21 +8,21 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtGui import QPixmap
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
-from .utils import resolve_path
+from utils import resolve_path
 
 ## We need to download PyQT and PyQt5.QtWebEngineWidgets seperately
 
 # --- Setup Logging ---
-from .AppLogger import Logger
+from AppLogger import Logger
 logger = Logger(__name__)
 logger.log_status("Starting App")
 
 # --- Configuration ---
-from .config_ import Config  # Custom config module
+from config_ import Config  # Custom config module
 config = Config(logger, resolve_path("config_.ini"))
 logger.log_status(resolve_path("config_.ini"))
 # --- Model Download ---
-from .model_download import download_model
+from model_download import download_model
 from pathlib import Path
 
 # --- Check model path ---
@@ -36,12 +38,12 @@ if not config.get_map_index_path().exists():
 
 # --- Import refactored Qt versions of feature windows ---
 a = time.time()
-from .ApiWindow import ApiWindow
-from .CropStreetWindow import CropWindow 
-from .BuildingDetectionWindow import BuildingDetectionWindow
-from .Classification import ClassificationWindow
-from .Duplicates_Better import DuplicatesWindow
-from .model_training import Trainer
+from ApiWindow import ApiWindow
+from CropStreetWindow import CropWindow 
+from BuildingDetectionWindow import BuildingDetectionWindow
+from Classification import ClassificationWindow
+from Duplicates_Better import DuplicatesWindow
+from model_training import Trainer
 logger.log_status(f'Time taken to import modules: {time.time()-a}.')
 
 logger.log_status('Modules imported. Starting Main App')
@@ -172,7 +174,7 @@ class MainApp(QMainWindow):
         self.move(x, y)
 
     def show_geoscatter(self):
-        from .geoscatter import GeoAnalysis
+        from geoscatter import GeoAnalysis
         geoscatter_path = resolve_path('Scatter')
         Geo = GeoAnalysis(config, logger)
         Geo.geoscatter(geoscatter_path)

@@ -1,5 +1,4 @@
 from pathlib import Path
-import tkinter as tk
 import shutil
 import os, cv2, sys
 

@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
-from .config_ import Config
-from .AppLogger import Logger
+from config_ import Config
+from AppLogger import Logger
 
 import os
 import time
@@ -18,7 +18,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, QObject
 import torch
 from PIL import Image
 
-from .utils import ensure_directory_exists, cleanup_process
+from utils import ensure_directory_exists, cleanup_process
 
 
 class Classify:

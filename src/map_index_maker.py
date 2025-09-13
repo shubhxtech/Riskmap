@@ -1,9 +1,9 @@
 import json
 from pathlib import Path
-from .AppLogger import Logger
+from AppLogger import Logger
 logger = Logger(__name__)
 from typing import Optional
-from .config_ import Config
+from config_ import Config
 config = Config(logger)
 
 def create_index(path: Optional[Path] = None):

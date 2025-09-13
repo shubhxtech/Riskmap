@@ -17,9 +17,9 @@ from PyQt5.QtCore import QObject, QThread, pyqtSignal
 from PyQt5.QtGui import QPixmap
 
 from pathlib import Path
-from .config_ import Config
-from .AppLogger import Logger
-from .utils import resolve_path
+from config_ import Config
+from AppLogger import Logger
+from utils import resolve_path
 
 
 class Trainer(QWidget):

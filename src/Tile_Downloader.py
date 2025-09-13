@@ -15,10 +15,10 @@ from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_excep
 from dotenv import load_dotenv
 load_dotenv(resolve_path("secrets.env"))
 
-from .AppLogger import Logger
+from AppLogger import Logger
 logger = Logger(__name__)
 
-from .config_ import Config
+from config_ import Config
 config = Config(logger)
 
 region = config.get_general_data()['region']

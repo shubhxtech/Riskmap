@@ -1,13 +1,15 @@
 Option Explicit
 
-Dim fso, logFile, shell, appDir, venvPython, mainScript, modelsDir, logPath
+Dim fso, logFile, shell, scriptDir, appDir, Python, mainScript, modelsDir, logPath
 
 Set fso = CreateObject("Scripting.FileSystemObject")
 Set shell = CreateObject("WScript.Shell")
 
 ' Define paths
-appDir = fso.GetParentFolderName(WScript.ScriptFullName)
-venvPython = appDir & "\.venv\Scripts\pythonw.exe"
+scriptDir = fso.GetParentFolderName(WScript.ScriptFullName)
+' go up one more parent
+appDir = fso.GetParentFolderName(scriptDir)
+Python = appDir & "\python\python.exe"
 mainScript = appDir & "\src\main.py"
 modelsDir = appDir & "\models"
 logPath = appDir & "\logs\launcher.log"
@@ -28,10 +30,10 @@ If Not fso.FolderExists(modelsDir) Then
     WScript.Quit 1
 End If
 
-' Check venv Python
-If Not fso.FileExists(venvPython) Then
-    logFile.WriteLine "ERROR: Python virtual environment missing."
-    MsgBox "Python environment missing. Please reinstall.", vbCritical, "Launch Error"
+' Check Python
+If Not fso.FileExists(Python) Then
+    logFile.WriteLine "ERROR: Python environment missing."
+    MsgBox "Python environment missing at " & Python & " . Please reinstall.", vbCritical, "Launch Error"
     WScript.Quit 1
 End If
 
@@ -43,6 +45,6 @@ If Not fso.FileExists(mainScript) Then
 End If
 
 ' Launch app
-logFile.WriteLine "Launching: " & venvPython & " " & mainScript
+logFile.WriteLine "Launching: " & Python & " " & mainScript
 logFile.Close
-shell.Run """" & venvPython & """ """ & mainScript & """", 0, False
+shell.Run """" & Python & """ """ & mainScript & """", 0, False

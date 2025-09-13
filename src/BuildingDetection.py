@@ -4,8 +4,8 @@ from PIL import Image
 from pathlib import Path
 from PyQt5.QtCore import QObject, pyqtSignal
 
-from .config_ import Config
-from .AppLogger import Logger
+from config_ import Config
+from AppLogger import Logger
 
 class ObjectDetectionProcessor(QObject):
     progress_updated = pyqtSignal(float)
