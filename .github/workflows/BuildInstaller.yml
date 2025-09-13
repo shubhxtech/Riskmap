@@ -1,0 +1,36 @@
+name: Build and Release Installer
+
+on:
+  # push:
+  #   branches:
+  #     - main
+  workflow_dispatch:  # allow manual trigger only for now
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup --no-progress -y
+        shell: powershell
+
+      - name: Compile installer
+        run: |
+          iscc.exe installer\RiskMap-dev.iss
+        shell: powershell
+
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: installer
+          name: RiskMap Development Build
+          files: |
+            installer\Output\*.exe
+          overwrite_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
