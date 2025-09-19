@@ -216,7 +216,7 @@ begin
     // 2) Extract models
     ModelsZip := ExpandConstant('{tmp}\models.zip');
     if not VerifyZip(ModelsZip) then Abort;
-    if not ExtractZipWithRetries(ModelsZip, ExpandConstant('{app}\models'), MAX_EXTRACT_RETRIES) then Abort;
+    if not ExtractZipWithRetries(ModelsZip, ExpandConstant('{app}'), MAX_EXTRACT_RETRIES) then Abort;
 
     // 3) Extract python
     PythonZip := ExpandConstant('{tmp}\python-3.10.9-embed-amd64.zip');
