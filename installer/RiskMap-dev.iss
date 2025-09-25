@@ -243,6 +243,9 @@ begin
 
     // 5) Install requirements
     RequirementsFile := ExpandConstant('{app}\requirements.txt');
+    if not FileExists(ExpandConstant('{app}\python\Scripts\pip.exe')) then 
+      LogToFile('The Get-pip.py did not run correctly. pip.exe was not found.');
+      Abort;      
     PipCmd := 'install -r "' + RequirementsFile + '" --no-warn-script-location';
 
     if not RunCommandWithRetries(ExpandConstant('{app}\python\Scripts\pip.exe') , PipCmd, MAX_CMD_RETRIES, SW_SHOW) then Abort;
