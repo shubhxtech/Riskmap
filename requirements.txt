@@ -21,5 +21,3 @@ onnx
 mkdocs
 mkdocs-material
 pymdown-extensions
-pytest
-unittest
