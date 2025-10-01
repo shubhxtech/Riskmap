@@ -42,7 +42,7 @@ class ImageProcessorWorker(QObject):
         return [img[0:y, 0:x//2], img[0:y, x//2:x]] if x > 0 and y > 0 else []
 
     def _save_image_with_coords(self, image, save_folder: Path, name, coordinates=(0, 0)):
-        save_path = save_folder + f'{name}_{coordinates}.jpg'
+        save_path = save_folder/f'{name}_{coordinates}.jpg'
         return save_image(image, save_path, logger=self.logger), save_path
 
     def _get_all_addresses(self) -> list:
@@ -89,7 +89,7 @@ class ImageProcessorWorker(QObject):
         all_metadata = []
         success_count = 0
 
-        metadata_file = self.save_folder + "processed_metadata.json"
+        metadata_file = self.save_folder/"processed_metadata.json"
 
         for index, path in enumerate(image_paths):
             while self.is_paused:

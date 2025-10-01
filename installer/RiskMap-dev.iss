@@ -94,26 +94,61 @@ begin
 end;
 
 
-function RunCommandWithRetries(const Program_, Params: string; Retries: Integer; ShowCmd: Integer): Boolean;
+// function RunCommandWithRetries(const Program_, Params: string; Retries: Integer; ShowCmd: Integer): Boolean;
+// var
+  // i, ResultCode: Integer;
+// begin
+  // Result := False;
+  // for i := 1 to Retries do
+  // begin
+    // LogToFile(Format('Running (%d/%d): %s %s', [i, Retries, Program_, Params]));
+    // if Exec(Program_, Params, '', ShowCmd, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
+    // begin
+      // Result := True;
+      // Exit;
+    // end;
+    // if i < Retries then
+    // begin
+      // LogToFile(Format('Exec returned code %d for %s %s', [ResultCode, Program_, Params]));
+      // LogToFile('Retrying after wait...');
+      // Sleep(CMD_RETRY_WAIT_MS);
+    // end;
+  // end;
+// end;
+
+
+// Run command with retries and redirect stdout+stderr to OutFile
+function RunCommandWithRetriesCaptureOutput(const Program_, Params: string; Retries: Integer; ShowCmd: Integer; const OutFile: string): Boolean;
 var
   i, ResultCode: Integer;
+  FullCmd: string;
+  CmdLine: string;
 begin
   Result := False;
+  LogToFile('Will capture output to: ' + OutFile);
   for i := 1 to Retries do
   begin
-    LogToFile(Format('Running (%d/%d): %s %s', [i, Retries, Program_, Params]));
-    if Exec(Program_, Params, '', ShowCmd, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
+    // Build a cmd.exe /C wrapper that quotes the program path and redirects output
+    // Example: cmd.exe /C ""C:\path\to\python.exe" "C:\tmp\get-pip.py" > "C:\App\bootstrap_pip.log" 2>&1"
+    FullCmd :=  Program_ + ' ' + Params;
+    CmdLine := '/C ' + FullCmd;
+    LogToFile(Format('Running with capture (%d/%d): cmd.exe %s', [i, Retries, CmdLine]));
+
+    // Exec cmd.exe with CmdLine (which already starts with /C)
+    if Exec('cmd.exe', CmdLine, '', ShowCmd, ewWaitUntilTerminated, ResultCode) and (ResultCode = 0) then
     begin
+      LogToFile(Format('Captured command succeeded (code %d): %s %s', [ResultCode, Program_, Params]));
       Result := True;
       Exit;
     end;
+    LogToFile(Format('Captured exec returned code %d for %s %s', [ResultCode, Program_, Params]));
     if i < Retries then
     begin
-      LogToFile(Format('Exec returned code %d for %s %s', [ResultCode, Program_, Params]));
       LogToFile('Retrying after wait...');
       Sleep(CMD_RETRY_WAIT_MS);
     end;
   end;
+  LogToFile(Format('All retries (with capture) failed for: %s %s', [Program_, Params]));
 end;
 
 function VerifyZip(const ZipPath: string): Boolean;
@@ -134,6 +169,33 @@ begin
     Result := True
   else
     LogToFile('Zip verification failed: ' + ZipPath);
+end;
+
+procedure EnsureFileExists(const FilePath: string);
+var
+  Dir: string;
+begin
+  Dir := ExtractFileDir(FilePath);
+  if (Dir <> '') and (not DirExists(Dir)) then
+  begin
+    if ForceDirectories(Dir) then
+      LogToFile('Created directory for log: ' + Dir)
+    else
+      LogToFile('Warning: could not create directory for log: ' + Dir);
+  end;
+
+  if not FileExists(FilePath) then
+  begin
+    try
+      // create an empty file (overwrites if present); third param = write Unicode? use False for ANSI
+      SaveStringToFile(FilePath, '', False);
+      LogToFile('Created empty log file: ' + FilePath);
+    except
+      LogToFile('Failed to create log file: ' + FilePath);
+    end;
+  end
+  else
+    LogToFile('Log file already exists: ' + FilePath);
 end;
 
 function ExtractZipWithRetries(const ZipPath, DestDir: string; Retries: Integer): Boolean;
@@ -180,7 +242,7 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 var
-  AppZip, ModelsZip, PythonZip, PipCmd, RequirementsFile: string;
+  BootstrapLog, PipInstallLog, AppZip, ModelsZip, PythonZip, PipCmd, RequirementsFile: string;
 begin
   if CurStep = ssInstall then
   begin
@@ -211,7 +273,7 @@ begin
     if not ExtractZipWithRetries(AppZip, ExpandConstant('{app}\src'), MAX_EXTRACT_RETRIES) then Abort;
     LogToFile('App source extracted.');
 
-    LogToFile('App source code has been downloaded successfully');
+    // LogToFile('App source code has been downloaded successfully');
 
     // 2) Extract models
     ModelsZip := ExpandConstant('{tmp}\models.zip');
@@ -226,29 +288,49 @@ begin
     // Patch python310._pth to enable site-packages
 
     EnableSitePackages(ExpandConstant('{app}\python\python310._pth'));
-     
-
+    
     // 4) Ensure pip
     if not FileExists(ExpandConstant('{app}\python\Scripts\pip.exe')) then
     begin
       LogToFile('pip.exe not found, bootstrapping...');
       ExtractTemporaryFile('get-pip.py');
-      if not RunCommandWithRetries(
+      BootstrapLog := ExpandConstant('{app}\bootstrap_pip.log');
+      EnsureFileExists(BootstrapLog);
+      if not RunCommandWithRetriesCaptureOutput(
         ExpandConstant('{app}\python\python.exe'),
         '"' + ExpandConstant('{tmp}\get-pip.py') + '"',
-        MAX_CMD_RETRIES, SW_SHOW) then Abort;
+        MAX_CMD_RETRIES, SW_SHOW,
+      BootstrapLog) then
+      begin
+        LogToFile('Bootstrapping pip failed. See ' + BootstrapLog);
+        Abort;
+      end
+      else
+        LogToFile('Bootstrapped pip successfully; full output in ' + BootstrapLog);
     end
     else
       LogToFile('pip already present.');
 
     // 5) Install requirements
     RequirementsFile := ExpandConstant('{app}\requirements.txt');
-    if not FileExists(ExpandConstant('{app}\python\Scripts\pip.exe')) then 
-      LogToFile('The Get-pip.py did not run correctly. pip.exe was not found.');
-      Abort;      
-    PipCmd := 'install -r "' + RequirementsFile + '" --no-warn-script-location';
+    if not FileExists(ExpandConstant('{app}\python\Scripts\pip.exe')) then
+    begin
+      LogToFile('The get-pip.py did not run correctly. pip.exe was not found.');
+      Abort;
+    end;
 
-    if not RunCommandWithRetries(ExpandConstant('{app}\python\Scripts\pip.exe') , PipCmd, MAX_CMD_RETRIES, SW_SHOW) then Abort;
+    PipCmd := 'install -r "' + RequirementsFile + '" --no-warn-script-location';
+    PipInstallLog := ExpandConstant('{app}\pip_install.log');
+    EnsureFileExists(PipInstallLog);
+    if not RunCommandWithRetriesCaptureOutput(
+      ExpandConstant('{app}\python\Scripts\pip.exe'),
+      PipCmd, MAX_CMD_RETRIES, SW_SHOW, PipInstallLog) then
+    begin
+      LogToFile('pip install failed. See ' + PipInstallLog);
+      Abort;
+    end
+    else
+      LogToFile('pip install completed; full output in ' + PipInstallLog);
     
     LogToFile('== Installer finished successfully ==');
   end;

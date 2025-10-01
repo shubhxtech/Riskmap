@@ -4764,3 +4764,86 @@ Check the documentation of torch.load to learn more about types accepted by defa
 NoneType: None
 2025-06-20 11:45:54,201 - __main__ - ERROR - An exception occurred
 NoneType: None
+2025-09-28 07:37:55,493 - __main__ - INFO - Starting App
+2025-09-28 07:37:55,517 - __main__ - INFO - using config file at c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:37:55,538 - __main__ - INFO - Config File Read Successfully
+2025-09-28 07:37:55,538 - __main__ - INFO - c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:37:56,009 - __main__ - INFO - Downloading model from https://tfhub.dev/google/faster_rcnn/openimages_v4/inception_resnet_v2/1?tf-hub-format=compressed to c:\Users\lenovo\Desktop\Mature\src\models\faster_rcnn\model.tar.gz...
+2025-09-28 07:38:18,804 - __main__ - INFO - Download complete.
+2025-09-28 07:38:18,804 - __main__ - INFO - Extracting model...
+2025-09-28 07:38:33,519 - __main__ - INFO - Model extracted successfully to C:\Users\lenovo\Desktop\Maturec:\Users\lenovo\Desktop\Mature\src\models\faster_rcnn.
+2025-09-28 07:38:34,484 - Tile_Downloader - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:38:34,484 - Tile_Downloader - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:38:34,490 - Tile_Downloader - INFO - Config File Read Successfully
+2025-09-28 07:38:40,762 - Metadata_scanner_grid_search - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:38:40,764 - Metadata_scanner_grid_search - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:38:40,770 - Metadata_scanner_grid_search - INFO - Config File Read Successfully
+2025-09-28 07:38:40,772 - __main__ - INFO - Time taken to import modules: 7.241487503051758.
+2025-09-28 07:38:40,778 - __main__ - INFO - Modules imported. Starting Main App
+2025-09-28 07:38:42,100 - __main__ - INFO - Setting up topbar
+2025-09-28 07:38:42,117 - __main__ - INFO - Adding widgets
+2025-09-28 07:40:04,403 - __main__ - INFO - Starting App
+2025-09-28 07:40:04,441 - __main__ - INFO - using config file at c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:40:04,446 - __main__ - INFO - Config File Read Successfully
+2025-09-28 07:40:04,446 - __main__ - INFO - c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:40:04,838 - Tile_Downloader - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:40:04,838 - Tile_Downloader - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:40:04,859 - Tile_Downloader - INFO - Config File Read Successfully
+2025-09-28 07:40:05,993 - Metadata_scanner_grid_search - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:40:05,993 - Metadata_scanner_grid_search - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:40:05,997 - Metadata_scanner_grid_search - INFO - Config File Read Successfully
+2025-09-28 07:40:06,000 - __main__ - INFO - Time taken to import modules: 1.2790391445159912.
+2025-09-28 07:40:06,000 - __main__ - INFO - Modules imported. Starting Main App
+2025-09-28 07:40:06,516 - __main__ - INFO - Setting up topbar
+2025-09-28 07:40:06,516 - __main__ - INFO - Adding widgets
+2025-09-28 07:40:17,868 - __main__ - INFO - Centre of map of aizawl: {'lat': 23.735, 'lng': 92.725}
+2025-09-28 07:40:17,883 - __main__ - INFO - Map initialized
+2025-09-28 07:40:41,716 - __main__ - INFO - Output folder set to C:/Users/lenovo/Downloads
+2025-09-28 07:41:15,111 - __main__ - INFO - Starting App
+2025-09-28 07:41:15,128 - __main__ - INFO - using config file at c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:41:15,128 - __main__ - INFO - Config File Read Successfully
+2025-09-28 07:41:15,128 - __main__ - INFO - c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:41:15,559 - Tile_Downloader - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:41:15,562 - Tile_Downloader - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:41:15,585 - Tile_Downloader - INFO - Config File Read Successfully
+2025-09-28 07:41:16,624 - Metadata_scanner_grid_search - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:41:16,624 - Metadata_scanner_grid_search - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:41:16,635 - Metadata_scanner_grid_search - INFO - Config File Read Successfully
+2025-09-28 07:41:16,635 - __main__ - INFO - Time taken to import modules: 1.216996192932129.
+2025-09-28 07:41:16,635 - __main__ - INFO - Modules imported. Starting Main App
+2025-09-28 07:41:16,957 - __main__ - INFO - Setting up topbar
+2025-09-28 07:41:16,957 - __main__ - INFO - Adding widgets
+2025-09-28 07:41:28,485 - __main__ - INFO - Centre of map of aizawl: {'lat': 23.735, 'lng': 92.725}
+2025-09-28 07:41:28,487 - __main__ - INFO - Map initialized
+2025-09-28 07:42:04,478 - __main__ - INFO - Starting App
+2025-09-28 07:42:04,558 - __main__ - INFO - using config file at c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:42:04,562 - __main__ - INFO - Config File Read Successfully
+2025-09-28 07:42:04,562 - __main__ - INFO - c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:42:05,175 - Tile_Downloader - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:42:05,175 - Tile_Downloader - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:42:05,197 - Tile_Downloader - INFO - Config File Read Successfully
+2025-09-28 07:42:06,655 - Metadata_scanner_grid_search - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:42:06,655 - Metadata_scanner_grid_search - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-09-28 07:42:06,657 - Metadata_scanner_grid_search - INFO - Config File Read Successfully
+2025-09-28 07:42:58,602 - __main__ - INFO - Time taken to import modules: 53.53794240951538.
+2025-09-28 07:42:58,608 - __main__ - INFO - Modules imported. Starting Main App
+2025-09-28 07:43:00,196 - __main__ - INFO - Setting up topbar
+2025-09-28 07:43:00,218 - __main__ - INFO - Adding widgets
+2025-09-28 07:43:02,835 - __main__ - INFO - Loaded in models\classifier\best_model.pth
+2025-09-28 07:43:02,840 - utils - INFO - Directory created: data\Classified
+2025-09-28 07:43:02,842 - __main__ - INFO - Using device: cpu
+2025-09-28 07:43:14,621 - __main__ - INFO - EfficientNetB7 model loaded
+2025-09-28 07:43:14,624 - __main__ - INFO - Model imports complete. Ready to filter duplicates.
+2025-09-28 07:43:16,207 - __main__ - INFO - Centre of map of aizawl: {'lat': 23.735, 'lng': 92.725}
+2025-09-28 07:43:16,207 - __main__ - INFO - Map initialized
+2025-09-28 07:43:38,487 - __main__ - ERROR - An exception occurred
+Traceback (most recent call last):
+  File "c:\Users\lenovo\Desktop\Mature\src\Classification.py", line 61, in instantiate_model
+    checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
+  File "c:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\serialization.py", line 1425, in load
+    with _open_file_like(f, "rb") as opened_file:
+  File "c:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\serialization.py", line 751, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+  File "c:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\serialization.py", line 732, in __init__
+    super().__init__(open(name, mode))
+FileNotFoundError: [Errno 2] No such file or directory: 'models\\classifier\\best_model.pth'

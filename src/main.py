@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QTextEdit, QLabel, QPushButton, QScrollArea, QGroupBox,
     QMessageBox, QCheckBox, QLineEdit, QHBoxLayout,  QGridLayout, QDialog
 )
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import QPixmap, QFont
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
 from utils import resolve_path
 
@@ -363,6 +363,9 @@ class MainApp(QMainWindow):
 # --- Launch App ---
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    font = QFont("Arial", 10)
+    app.setFont(font)
+
     window = MainApp()
     window.showMaximized()
     print(time.time()-a)
