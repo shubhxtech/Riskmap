@@ -109,7 +109,7 @@ class DuplicateClassifier:
             else:
                 clusters_unique.setdefault(label, []).append(file_name)
 
-        base_path = specs['destination_parent_folder']
+        base_path = Path(specs['destination_parent_folder'])
         os.makedirs(base_path, exist_ok=True)
 
         total = len(clusters)
@@ -157,7 +157,7 @@ class DuplicateClassifier:
                 time_taken_all += time_taken
             return time_taken_all
         except Exception as e:
-            self.logger.log_exception(f'An error occured while processing duplicaes: {e}')
+            self.logger.log_exception(f'An error occured while processing duplicates: {e}')
 
 
 class DuplicateModelLoaderThread(QThread):
@@ -313,7 +313,7 @@ class DuplicatesWindow(QWidget):
 
     def start_process(self):
         self.files_processed_text.clear()
-        self.worker = DuplicatesWorker(self.config, self.logger, self.check_box.isChecked())
+        self.worker = DuplicatesWorker(self.config, self.logger, self.check_box.isChecked(), self.save_folder)
         self.worker_thread = QThread()
         self.worker.moveToThread(self.worker_thread)
 

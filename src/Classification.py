@@ -170,7 +170,8 @@ class Classify:
                     labels[class_name][0].setText(f"{class_name}: {stats['class_counts'][class_name]}")
                 progress_callback(((stats['processed'] + stats['failed'])/ stats['total']) * 100)
 
-                lat, lon = image_path.name.split('_')[3:5]
+                self.logger.log_status("image_path.name: ", image_path.name)
+                lat, lon = image_path.name.split(' ')[3:5]
                 locfile.write(f"{lat}:{lon}:{class_name}\n")
 
         self.logger.log_status("Classification Complete:\n"+ f"Processed: {stats['processed']}, Uncertain: {stats['uncertain']}, Failed: {stats['failed']}")
@@ -388,32 +389,4 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.text_output.verticalScrollBar().setValue(self.text_output.verticalScrollBar().maximum())
 
     def on_process_done(self, location_file_path: Path):
-        class GeoScatterWorker(QObject):
-            finished = pyqtSignal()
-        
-            def __init__(self, config, logger, location_file_path, folder):
-                from geoscatter import GeoAnalysis
-                super().__init__()
-                self.geo = GeoAnalysis(config, logger)
-                self.path = location_file_path
-                self.folder = folder
-
-            def run(self):
-                self.geo.geoscatter(self.path, self.folder)
-                self.finished.emit()
-
-        self.process_button.setEnabled(True)
-        self.timer_threader_2.running = False
-        self.threader_2 = QThread()
-        self.worker = GeoScatterWorker(self.config, self.logger, location_file_path, self.folder)
-
-        self.worker.moveToThread(self.threader_2)
-        self.threader_2.started.connect(self.worker.run)
-        self.worker.finished.connect(self.threader_2.quit)
-        self.worker.finished.connect(self.worker.deleteLater)
-        self.threader_2.finished.connect(self.threader_2.deleteLater)
-
-        self.threader_2.start()
-
-
-    
+        pass

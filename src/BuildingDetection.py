@@ -185,6 +185,7 @@ class ObjectDetectionProcessor(QObject):
         )
 
         total_files = len(image_files)
+        self.log_message.emit(f"Total files = {total_files}")
         for idx, image_file in enumerate(image_files, start=1):
             progress = float(idx) / total_files if total_files else 0.0
             self.progress_updated.emit(progress * 100)  # emit 0–100

@@ -8,6 +8,11 @@ import time
 
 class _DetectionWorker(QtCore.QThread):
     progress_done = QtCore.pyqtSignal()
+    # These attributes will be connected by the parent at runtime:
+    progress_changed = QtCore.pyqtSignal(float)
+    log_message = QtCore.pyqtSignal(str)
+    image_saved = QtCore.pyqtSignal(str)
+
 
     def __init__(self, processor: ObjectDetectionProcessor, remove_after: bool):
         super().__init__()
@@ -18,11 +23,6 @@ class _DetectionWorker(QtCore.QThread):
         self.processor.progress_updated.connect(self._emit_progress)
         self.processor.log_message.connect(self._emit_log)
         self.processor.image_saved.connect(self._emit_image_saved)
-
-    # These attributes will be connected by the parent at runtime:
-    progress_changed = QtCore.pyqtSignal(float)
-    log_message = QtCore.pyqtSignal(str)
-    image_saved = QtCore.pyqtSignal(str)
 
     def _emit_progress(self, pct: float):
         self.progress_changed.emit(pct)
@@ -349,9 +349,9 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
             processor=self.processor,
             remove_after=self.remove_checkbox.isChecked()
         )
-        self.worker.progress_changed = self.update_progress
-        self.worker.log_message = self.log_to_output
-        self.worker.image_saved = self.log_to_output
+        self.worker.progress_changed.connect(self.update_progress)
+        self.worker.log_message.connect(self.log_to_output)
+        self.worker.image_saved.connect(self.log_to_output)
         self.worker.progress_done.connect(self.on_process_done)
 
         self.worker.start()

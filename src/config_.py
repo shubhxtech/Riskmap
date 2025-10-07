@@ -310,7 +310,7 @@ class Config:
                 self.parser.add_section(section)
             self.parser.set(section, option, value)
             self.save_config()  # writes to file
-            self.logger.log_status(f"BUILDING_DETECTION → Set {option} = {value}", "INFO")
+            self.logger.log_status(f"BUILDING_DETECTION => Set {option} = {value}", "INFO")
             return True
         except Exception as e:
             self.logger.log_exception(f"Failed to set BUILDING_DETECTION {option}: {e}")
