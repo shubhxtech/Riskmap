@@ -505,6 +505,13 @@ class Config:
         self.save_config() # Add exception handing here
         return True
 
+    def set_save_folder_process(self, folder):
+        """
+        Sets output folder for process module
+        """
+        section_name = "Processed"
+        self.set(section=section_name, option="save_folder", value=folder)
+
     def set_input_folder_process(self, folder):
         """
         Sets the input folder that feeds to the process files module
