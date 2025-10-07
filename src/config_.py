@@ -528,7 +528,7 @@ class Config:
 
     def set_size_of_images(self, height: int, width:int):
         section_name = "General"
-        self.set(section_name=section_name, option="size_of_images", value=f'{width},{height}')
+        self.set(section=section_name, option="size_of_images", value=f'{width},{height}')
 
 
 if __name__ == "__main__":
