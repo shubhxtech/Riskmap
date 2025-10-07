@@ -530,6 +530,13 @@ class Config:
         section_name = "General"
         self.set(section=section_name, option="size_of_images", value=f'{width},{height}')
 
+    def set_blur_size(self, blur_height: int):
+        """
+        Change blur size
+        """
+        section_name = "General"
+        self.set(section=section_name, option="blur_region_height", value=f'{blur_height}')
+
 
 if __name__ == "__main__":
     Config(Logger(__name__))
