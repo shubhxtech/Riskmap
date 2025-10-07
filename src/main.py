@@ -21,13 +21,7 @@ logger.log_status("Starting App")
 from config_ import Config  # Custom config module
 config = Config(logger, resolve_path("config_.ini"))
 logger.log_status(resolve_path("config_.ini"))
-# --- Model Download ---
-from model_download import download_model
-from pathlib import Path
 
-# --- Check model path ---
-if not config.get_model_save_folder().exists():
-    download_model(logger, config) #Downloading faster_rcnn as default
 
 # --- Check if map index exists ---
 if not config.get_map_index_path().exists():
