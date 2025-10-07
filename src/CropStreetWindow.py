@@ -118,9 +118,10 @@ class ImageProcessorWorker(QObject):
 
 
 class ImageCropperView(QGraphicsView):
-    def __init__(self, logger: Logger, parent=None):
+    def __init__(self,config:Config,  logger: Logger, parent=None):
         super().__init__(parent)
         self.logger = logger
+        self.config = config
         self.scene = QGraphicsScene(self)
         self.setScene(self.scene)
         self.setRenderHint(QPainter.Antialiasing)
@@ -161,6 +162,7 @@ class ImageCropperView(QGraphicsView):
         self.scene.addItem(self.image_item)
         self.fitInView(self.image_item, Qt.KeepAspectRatio)
         self._draw_lines(pixmap.width(), pixmap.height())
+        self.config.set_size_of_images(height, width)
 
     def _draw_lines(self, width, height):
         pen = QPen(Qt.red, 5, Qt.DashLine)
@@ -236,7 +238,7 @@ class CropWindow(QWidget):
         self.layout.addWidget(top_widget, stretch=1)
 
         # Image crop preview and control UI
-        self.image_view = ImageCropperView(self.logger)
+        self.image_view = ImageCropperView(self.config, self.logger)
         self.layout.addWidget(self.image_view, stretch=3)
 
         # UI controls for crop height

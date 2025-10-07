@@ -526,5 +526,10 @@ class Config:
         section_name = "BUILDING_DETECTION"
         self.set(section=section_name, option="input_dir", value=folder)
 
+    def set_size_of_images(self, height: int, width:int):
+        section_name = "General"
+        self.set(section_name=section_name, option="size_of_images", value=f'{width},{height}')
+
+
 if __name__ == "__main__":
     Config(Logger(__name__))
