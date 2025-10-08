@@ -128,7 +128,7 @@ class ImageCropperView(QGraphicsView):
         self.image_item = None
         self.h_line = None
         self.v_line = None
-        self.img_height = 100
+        self.img_blur_height = 100
         self.cv_img = None
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -140,7 +140,7 @@ class ImageCropperView(QGraphicsView):
 
     def set_image(self, cv_img, img_height):
         self.scene.clear()
-        self.img_height = img_height
+        self.img_blur_height = img_height
         self.cv_img = cv_img
         self._update_display()
 
@@ -168,7 +168,7 @@ class ImageCropperView(QGraphicsView):
         pen = QPen(Qt.red, 5, Qt.DashLine)
 
         # Horizontal line (modifiable height)
-        y = min(max(0, self.img_height), height)
+        y = min(max(0, self.img_blur_height), height)
         y = height-y
         self.h_line = self.scene.addLine(0, y, width, y, pen)
 
@@ -176,9 +176,9 @@ class ImageCropperView(QGraphicsView):
         x = width // 2
         self.v_line = self.scene.addLine(x, 0, x, height, pen)
 
-    def update_crop_height(self, new_height):
-        self.img_height = int(new_height)
-        self.logger.log_status(f'new image height = {self.img_height}')
+    def update_crop_height(self, blur_height):
+        self.img_blur_height = int(blur_height)
+        self.logger.log_status(f'new blur height = {self.img_blur_height}')
         self._update_display()
 
 class CropWindow(QWidget):
@@ -339,12 +339,9 @@ class CropWindow(QWidget):
 
     def save_crop_values(self):
         try:
-            new_height = int(self.height_input.text())
-            old_size = self.config.get_image_size().split(',')
-            new_size = f"{old_size[0]},{new_height}"
-            self.config.set_blur_size(old_size[0]-new_size)
+            new_blur_height = self.height_input.text()
+            self.config.set_blur_size(new_blur_height)
             
-
             # Update preview
             input_folder = Path(self.folder_input.text())
             image_paths = list(input_folder.glob("*"))
@@ -352,9 +349,9 @@ class CropWindow(QWidget):
 
             if first_image_path:
                 img = cv2.imread(str(first_image_path))
-                self.image_view.set_image(img, new_height)
+                self.image_view.set_image(img, new_blur_height)
 
-            self.logger.log_status(f"Crop height updated to {new_height}px")
+            self.logger.log_status(f"Crop blur height updated to {new_blur_height}px")
 
         except Exception as e:
             self.logger.log_status(f"Failed to save crop values: {e}")
