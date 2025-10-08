@@ -4847,3 +4847,39 @@ Traceback (most recent call last):
   File "c:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\serialization.py", line 732, in __init__
     super().__init__(open(name, mode))
 FileNotFoundError: [Errno 2] No such file or directory: 'models\\classifier\\best_model.pth'
+2025-10-08 17:51:23,180 - __main__ - INFO - Starting App
+2025-10-08 17:51:23,207 - __main__ - INFO - using config file at c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-10-08 17:51:23,212 - __main__ - INFO - Config File Read Successfully
+2025-10-08 17:51:23,212 - __main__ - INFO - c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-10-08 17:51:23,979 - Tile_Downloader - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-10-08 17:51:23,979 - Tile_Downloader - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-10-08 17:51:23,980 - Tile_Downloader - INFO - Config File Read Successfully
+2025-10-08 17:51:26,455 - Metadata_scanner_grid_search - INFO - used the path is none path. C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-10-08 17:51:26,455 - Metadata_scanner_grid_search - INFO - using config file at C:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-10-08 17:51:26,455 - Metadata_scanner_grid_search - INFO - Config File Read Successfully
+2025-10-08 17:51:52,763 - __main__ - INFO - Time taken to import modules: 29.550376653671265.
+2025-10-08 17:51:52,763 - __main__ - INFO - Modules imported. Starting Main App
+2025-10-08 17:51:53,727 - __main__ - INFO - Setting up topbar
+2025-10-08 17:51:53,740 - __main__ - INFO - Adding widgets
+2025-10-08 17:51:55,852 - __main__ - INFO - Loaded in ..\models\classifier\best_model.pth
+2025-10-08 17:51:55,855 - utils - INFO - Directory already exists: data\Classified
+2025-10-08 17:51:55,856 - __main__ - INFO - Using device: cpu
+2025-10-08 17:52:05,179 - __main__ - INFO - EfficientNetB7 model loaded
+2025-10-08 17:52:05,180 - __main__ - INFO - Model imports complete. Ready to filter duplicates.
+2025-10-08 17:52:23,219 - __main__ - ERROR - An exception occurred
+Traceback (most recent call last):
+  File "c:\Users\lenovo\Desktop\Mature\src\Classification.py", line 61, in instantiate_model
+    checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
+  File "c:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\serialization.py", line 1425, in load
+    with _open_file_like(f, "rb") as opened_file:
+  File "c:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\serialization.py", line 751, in _open_file_like
+    return _open_file(name_or_buffer, mode)
+  File "c:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\torch\serialization.py", line 732, in __init__
+    super().__init__(open(name, mode))
+FileNotFoundError: [Errno 2] No such file or directory: '..\\models\\classifier\\best_model.pth'
+2025-10-08 17:58:05,207 - __main__ - INFO - Centre of map of aizawl: {'lat': 23.735, 'lng': 92.725}
+2025-10-08 17:58:05,226 - __main__ - INFO - Map initialized
+2025-10-08 17:58:18,502 - __main__ - INFO - Configuration saved to c:\Users\lenovo\Desktop\Mature\src\config_.ini
+2025-10-08 17:58:18,502 - __main__ - INFO - Set Duplicates: destination_parent_folder to C:/Users/lenovo/Desktop/Mature/data/check
+2025-10-08 17:58:18,502 - __main__ - INFO - Output folder set to C:/Users/lenovo/Desktop/Mature/data/check
+2025-10-08 17:58:22,921 - __main__ - INFO - Config File Read Successfully

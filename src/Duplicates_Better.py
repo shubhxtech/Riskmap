@@ -16,14 +16,13 @@ from utils import cleanup_process, resolve_path
 from tensorflow.keras.preprocessing import image
 
 class DuplicateClassifier:
-    def __init__(self, config: Config, logger: Logger, folder: Path):
+    def __init__(self, config: Config, logger: Logger):
         self.config = config
         self.logger = logger
         self.MODEL = None
         self.processor = None
         self.loader = image
         self.metadata_file = self.config.get_duplicates_data()["metadata_file_name"]
-        self.save_folder = folder
         self.is_paused = False
         self.is_cancelled = False
         self.class_color_map: Dict[str, str] = {}
@@ -109,7 +108,7 @@ class DuplicateClassifier:
             else:
                 clusters_unique.setdefault(label, []).append(file_name)
 
-        base_path = Path(specs['destination_parent_folder'])
+        base_path = Path(self.config.get_duplicates_data()["destination_parent_folder"])
         os.makedirs(base_path, exist_ok=True)
 
         total = len(clusters)
@@ -164,16 +163,15 @@ class DuplicateModelLoaderThread(QThread):
     model_loaded = pyqtSignal()
     model_failed = pyqtSignal(str)
 
-    def __init__(self, config: Config, logger: Logger, folder):
+    def __init__(self, config: Config, logger: Logger):
         super().__init__()
         self.config = config
         self.logger = logger
-        self.folder = folder
+        self.loader = DuplicateClassifier(self.config, self.logger)
 
     def run(self):
-        try:
-            loader = DuplicateClassifier(self.config, self.logger, self.folder)
-            loader.load_model()
+        try:            
+            self.loader.load_model()
             self.model_loaded.emit()
         except Exception as e:
             self.model_failed.emit(str(e))
@@ -184,18 +182,17 @@ class DuplicatesWorker(QObject):
     processing_complete = pyqtSignal(float)
     error_occurred  = pyqtSignal(str)
 
-    def __init__(self, config: Config, logger: Logger, remove_dir: bool, folder):
+    def __init__(self, config: Config, logger: Logger, remove_dir: bool):
         super().__init__()
         self.config = config
         self.logger = logger
-        self.folder = folder
         self.remove_dir = remove_dir
         self.processor: DuplicateClassifier | None = None
 
     @pyqtSlot()
     def run(self):
         try:
-            self.processor = DuplicateClassifier(self.config, self.logger, self.folder)
+            self.processor = DuplicateClassifier(self.config, self.logger)
             self.processor.load_model()
             elapsed = self.processor.process_multiple_folders(
                 [self.config.get_input_folder_dup()],
@@ -235,7 +232,7 @@ class DuplicatesWindow(QWidget):
         self.init_ui()
 
         self.process_button.setEnabled(False)
-        self.loader_thread = DuplicateModelLoaderThread(self.config, self.logger, self.save_folder)
+        self.loader_thread = DuplicateModelLoaderThread(self.config, self.logger)
         self.loader_thread.model_loaded.connect(self.on_model_loaded)
         self.loader_thread.model_failed.connect(self.on_model_failed)
         self.loader_thread.start()
@@ -294,6 +291,7 @@ class DuplicatesWindow(QWidget):
             folder = QFileDialog.getExistingDirectory(self, "Select Output Folder", options=QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks)
             if folder:
                 self.save_folder = folder
+                self.config.set_duplicates_save_folder(folder)
                 self.folder_label.setText(folder)
                 self.logger.log_status(f"Output folder set to {folder}")
         except Exception as e:
@@ -313,7 +311,7 @@ class DuplicatesWindow(QWidget):
 
     def start_process(self):
         self.files_processed_text.clear()
-        self.worker = DuplicatesWorker(self.config, self.logger, self.check_box.isChecked(), self.save_folder)
+        self.worker = DuplicatesWorker(self.config, self.logger, self.check_box.isChecked())
         self.worker_thread = QThread()
         self.worker.moveToThread(self.worker_thread)
 

@@ -537,6 +537,12 @@ class Config:
         section_name = "General"
         self.set(section=section_name, option="blur_region_height", value=blur_height)
 
+    def set_duplicates_save_folder(self, folder: Path|str):
+        """
+        Set the output folder of duplicates module processing
+        """
+        section_name="Duplicates"
+        self.set(section=section_name, option="destination_parent_folder", value=folder)
 
 if __name__ == "__main__":
     Config(Logger(__name__))
