@@ -345,7 +345,11 @@ class CropWindow(QWidget):
             # Update preview
             input_folder = Path(self.folder_input.text())
             image_paths = list(input_folder.glob("*"))
-            first_image_path = next((p for p in image_paths if p.suffix.lower() in self.worker.supported_files), None)
+
+            self.supported_files = tuple(
+            item.strip() for item in self.config.get_allowed_file_types().split(',')
+            )
+            first_image_path = next((p for p in image_paths if p.suffix.lower() in self.supported_files), None)
 
             if first_image_path:
                 img = cv2.imread(str(first_image_path))

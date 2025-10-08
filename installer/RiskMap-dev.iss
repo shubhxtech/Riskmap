@@ -1,5 +1,5 @@
-; === RiskMap Installer (with IDP) ===
-#define AppName "RiskMap"
+; === RAPID-Lens Installer (with IDP) ===
+#define AppName "RAPID-Lens"
 #define AppVersion "2.0.0"
 #define Publisher "Devansh Banga"
 #define URL "https://github.com/Devansh-14971"
@@ -16,7 +16,7 @@ DefaultDirName={localappdata}\{#AppName}
 DefaultGroupName={#AppName}
 PrivilegesRequired=lowest
 OutputDir=output
-OutputBaseFilename=RiskMapInstaller
+OutputBaseFilename=RAPIDLensInstaller
 Compression=lzma
 SolidCompression=yes
 SetupLogging=yes
