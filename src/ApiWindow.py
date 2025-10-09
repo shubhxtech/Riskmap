@@ -251,7 +251,7 @@ class ApiWindow(QWidget):
             }
             @retry(wait=wait_exponential(multiplier=1, min=2, max=10), stop=stop_after_attempt(3))
             def safe_get(url, **kwargs):
-                kwargs.setdefault(timeout=10)
+                kwargs.setdefault("timeout",10)
                 return requests.get(url, **kwargs)
             response = safe_get(url, params=params, headers=headers)
             data = response.json()

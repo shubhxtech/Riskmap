@@ -136,7 +136,6 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
         self.reset_button = QtWidgets.QPushButton("Reset to Defaults")
         self.remove_checkbox = QtWidgets.QCheckBox("Remove input folder after processing")
         self.process_button = QtWidgets.QPushButton("Detect buildings")
-        self.process_button.setEnabled(False)  # will be enabled after validation
         button_layout.addWidget(self.reset_button)
         button_layout.addStretch()
         button_layout.addWidget(self.remove_checkbox)
@@ -185,56 +184,65 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
         Provide tooltips to indicate invalid fields.
         """
         valid = True
-
+        self.logger.log_status("Starting update of process button")
         # Validate model_path
         model_path_str = self.model_path_edit.text().strip()
         if not model_path_str:
-            self.model_path_edit.setToolTip("Model path cannot be empty.")
+            self.logger.log_status("model_path_str")
+            self.process_button.setToolTip("Model path cannot be empty.")
             valid = False
         else:
             p = Path(model_path_str)
-            if not p.exists() or not p.is_dir():
-                self.model_path_edit.setToolTip("Model path must point to an existing directory.")
+            self.logger.log_status(f"path {p}")
+            self.logger.log_status(f"{(not p.exists()) or (not p.is_dir())} is output of p")
+            if (not p.exists()) or (not p.is_dir()):
+                self.process_button.setToolTip("Model path must point to an existing directory.")
                 valid = False
             else:
-                self.model_path_edit.setToolTip("")
+                if valid:
+                    self.process_button.setToolTip("Model Path exists")
 
         # Validate target_classes
         tc = self.target_classes_edit.text().strip()
         if not tc:
-            self.target_classes_edit.setToolTip("Target classes cannot be empty.")
+            self.process_button.setToolTip("Target classes cannot be empty.")
             valid = False
         else:
             # Ensure there is at least one non-empty class name
             classes_list = [c.strip() for c in tc.split(",") if c.strip()]
             if not classes_list:
-                self.target_classes_edit.setToolTip("Enter at least one class name, separated by commas.")
+                self.process_button.setToolTip("Enter at least one class name, separated by commas.")
                 valid = False
             else:
-                self.target_classes_edit.setToolTip("")
+                if valid:
+                    self.process_button.setToolTip("Class names present")
 
         # Validate output_dir
         output_str = self.output_dir_edit.text().strip()
         if not output_str:
-            self.output_dir_edit.setToolTip("Output directory cannot be empty.")
+            self.process_button.setToolTip("Output directory cannot be empty.")
             valid = False
         else:
             out_p = Path(output_str)
-            if not out_p.exists() or not out_p.is_dir():
-                self.output_dir_edit.setToolTip("Output must point to an existing directory.")
+            if (not out_p.exists()) or (not out_p.is_dir()):
+                self.process_button.setToolTip("Output must point to an existing directory.")
                 valid = False
             else:
-                self.output_dir_edit.setToolTip("")
+                if valid:
+                    self.process_button.setToolTip("Output points to an existing directory")
 
         # Optionally validate input_dir too (uncomment if required):
         input_str = self.folder_label.text().strip()
         in_p = Path(input_str)
         if not in_p.exists() or not in_p.is_dir():
-            self.folder_label.setToolTip("Input folder must exist.")
+            self.process_button.setToolTip("Input folder must exist.")
             valid = False
         else:
-            self.folder_label.setToolTip("")
-
+            if valid:
+                self.process_button.setToolTip("input folder exists")
+            
+        if valid:
+            self.process_button.setToolTip("Detect buildings with the press of this button")
         self.process_button.setEnabled(valid)
 
     def choose_input_folder(self):
@@ -249,7 +257,7 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
             self.folder_label.setText(folder)
             self.config.set_building_detection_param("input_dir", folder)
             # You could also re‐validate here if you enforce input_dir validity
-            # self._update_process_button_state()
+            self._update_process_button_state()
 
     def choose_model_dir(self):
         from PyQt5.QtWidgets import QFileDialog
@@ -261,6 +269,7 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
         )
         if folder:
             self.model_path_edit.setText(folder)
+            self.config.set_model_path(folder)
 
     def choose_output_folder(self):
         from PyQt5.QtWidgets import QFileDialog
@@ -272,6 +281,7 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
         )
         if folder:
             self.output_dir_edit.setText(folder)
+            self.config.set_output_detection_path(folder)
 
     def reset_to_defaults(self):
         """
@@ -326,7 +336,7 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
         self.config.set_building_detection_param("threshold", threshold_val)
         self.config.set_building_detection_param("expand_factor", expand_val)
         self.config.set_building_detection_param("min_dim", min_dim_val)
-
+    
         # Instantiate processor with up‐to‐date config
         self.processor = ObjectDetectionProcessor(self.config, self.logger)
 

@@ -128,7 +128,7 @@ class ImageCropperView(QGraphicsView):
         self.image_item = None
         self.h_line = None
         self.v_line = None
-        self.img_blur_height = 100
+        self.img_blur_height = self.config.get_blur_size()
         self.cv_img = None
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -247,7 +247,7 @@ class CropWindow(QWidget):
         self.use_custom_crop.setChecked(False)
 
         self.height_input = QLineEdit()
-        self.height_input.setText(str(self.config.get_image_size().split(',')[1]))
+        self.height_input.setText(str(self.config.get_blur_size()))
         self.height_input.setEnabled(False)
 
         self.save_crop_button = QPushButton("Save Crop Settings")
@@ -292,8 +292,8 @@ class CropWindow(QWidget):
         if first_image_path:
             self.logger.log_status(f"Read {str(first_image_path)} for display")
             img = cv2.imread(str(first_image_path))
-            height_str = self.config.get_image_size().split(',')[1]
-            self.image_view.set_image(img, int(height_str))
+            blur_height = self.config.get_blur_size()
+            self.image_view.set_image(img, blur_height)
 
     @pyqtSlot()
     def change_save_folder(self):
@@ -353,7 +353,7 @@ class CropWindow(QWidget):
 
             if first_image_path:
                 img = cv2.imread(str(first_image_path))
-                self.image_view.set_image(img, new_blur_height)
+                self.image_view.set_image(img, int(new_blur_height))
 
             self.logger.log_status(f"Crop blur height updated to {new_blur_height}px")
 
@@ -371,6 +371,7 @@ class CropWindow(QWidget):
         self.status_label.setText(f"Completed! {count} files processed.")
         self.process_button.setEnabled(True)
         self.browse_button.setEnabled(True)
+        self.threader.terminate()
 
     def on_error(self, message):
         self.status_label.setText(f"Error: {message}")

@@ -544,5 +544,19 @@ class Config:
         section_name="Duplicates"
         self.set(section=section_name, option="destination_parent_folder", value=folder)
 
+    def set_model_path(self, model_path):
+        """
+        Set the value of model_path in building detection
+        """
+        section_name = "Building_Detection"
+        self.set(section=section_name, option="model_path", value=model_path)
+
+    def set_output_detection_path(self, output_path):
+        """
+        Set the value of output_dir in building detection
+        """
+        section_name = "Building_Detection"
+        self.set(section=section_name, option="output_dir", value=output_path)
+
 if __name__ == "__main__":
     Config(Logger(__name__))
