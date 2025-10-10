@@ -28,7 +28,7 @@ class Classify:
         params = self.config.get_classification_data()
 
         self.supported_files = tuple(f.strip() for f in self.config.get_allowed_file_types().split(','))
-        self.save_folder = self.config.get_paths_data()["classification_save_folder_path"]
+        self.save_folder = self.config.get_classification_data()["output_folder"]
         ensure_directory_exists(self.save_folder)
         self.metadata_file = Path(self.save_folder) / "processed_metadata.json"
 
@@ -42,7 +42,6 @@ class Classify:
 
         self.image_extensions = self.config.get_img_ext()
         self.image_extensions = tuple(self.image_extensions.split(','))
-
 
         self.device = device if device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.logger.log_status(f"Using device: {self.device}")
@@ -75,7 +74,7 @@ class Classify:
     def make_folders(self):
         names = self.config.get_foldr_names_classif().split(',')
         foldr_name = self.config.get_classif_folder_name()
-        foldr = self.config.get_current_working_folder() / foldr_name
+        foldr = Path(self.output_folder) / foldr_name
         for i in names:
             dir = foldr / i
             try:
@@ -110,9 +109,9 @@ class Classify:
 
     def organize_images(self, check_value, output_file_path, progress_callback, labels, selected_model):
         self.input_folder = [i for i in Path(self.parent_folder).glob('Unique')]
-        self.logger.log_status(f'input_folder {self.input_folder}')
+        self.logger.log_status(f'input_folder for classification: {self.input_folder}')
         self.model_path = selected_model
-        self.logger.log_status('reached organize_images')
+        self.logger.log_status('Reached organize_images')
         try:
             os.makedirs(self.output_folder, exist_ok=True)
             uncertain_folder = os.path.join(self.output_folder, "uncertain")
@@ -260,8 +259,10 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.model_path = params["model_path"]
         self.model_ext = params["model_ext"]
         self.available_models = params["available_models"].split(',')
-        self.folder = params["parent_folder"]
-        self.input_folder_name = Path(self.folder).name
+        self.input_folder = params["parent_folder"]
+        self.input_folder_name = Path(self.input_folder).name
+
+        self.output_folder = params["output_folder"]
 
         self.setToolTip("Use classification models to assign labels to images based on their visual content.")
         self.init_ui()
@@ -306,14 +307,23 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.process_button = QtWidgets.QPushButton("Classify All Images")
         self.process_button.clicked.connect(self.start_process)
 
-        self.folder_label = QLabel("Destination Folder:")
-        self.folder_input = QLineEdit(str(self.folder))
-        self.browse_button = QPushButton("Browse")
-        self.browse_button.clicked.connect(self.browse_folder)
+        self.input_folder_label = QLabel("Source Folder:")
+        self.input_folder_input = QLineEdit(str(self.input_folder))
+        self.input_browse_button = QPushButton("Browse")
+        self.input_browse_button.clicked.connect(self.browse_input_folder)
 
-        layout.addWidget(self.folder_label)
-        layout.addWidget(self.folder_input)
-        layout.addWidget(self.browse_button)
+        self.output_folder_label = QLabel("Destination Folder:")
+        self.output_folder_input = QLineEdit(str(self.output_folder))
+        self.output_browse_button = QPushButton("Browse")
+        self.output_browse_button.clicked.connect(self.browse_output_folder)
+
+        layout.addWidget(self.input_folder_label)
+        layout.addWidget(self.input_folder_input)
+        layout.addWidget(self.input_browse_button)
+
+        layout.addWidget(self.output_folder_label)
+        layout.addWidget(self.output_folder_input)
+        layout.addWidget(self.output_browse_button)
 
         self.top_layout.addWidget(self.process_button)
         self.top_layout.addWidget(self.drop_down)
@@ -359,11 +369,19 @@ class ClassificationWindow(QtWidgets.QWidget):
     def on_select(self, text):
         self.selected_model = self.model_path + text + self.model_ext
 
-    def browse_folder(self):
-        folder = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Input Folder")
-        if folder:
-            self.folder_input.setText(folder)
-            self.folder = Path(folder)
+    def browse_output_folder(self):
+        output_folder = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Folder")
+        if output_folder:
+            self.output_folder_input.setText(output_folder)
+            self.output_folder = Path(output_folder)
+            self.config.set_classif_output_foldr(output_folder)
+
+    def browse_input_folder(self):
+        input_folder = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Input folder")
+        if input_folder:
+            self.input_folder_input.setText(input_folder)
+            self.input_folder = Path(input_folder)
+            self.config.set_classif_input_foldr(input_folder)
 
     def start_process(self):
         self.process_button.setEnabled(False)
@@ -374,7 +392,7 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.timer_thread.start()
 
         check_value = self.remove_checkbox.isChecked()
-        self.worker = _ClassificationWorker(self.processor, check_value, self.selected_model, self.labels, self.folder_input.text())
+        self.worker = _ClassificationWorker(self.processor, check_value, self.selected_model, self.labels, self.output_folder_input.text())
         self.worker.progress_updated.connect(self.update_progress)
         self.worker.message_logged.connect(self.log_to_output)
         self.worker.processing_done.connect(self.on_process_done)

@@ -558,5 +558,19 @@ class Config:
         section_name = "Building_Detection"
         self.set(section=section_name, option="output_dir", value=output_path)
 
+    def set_classif_output_foldr(self, output_folder:str):
+        """
+        Set the output folder option in the Classification section 
+        """
+        section_name = "Classification"
+        self.set(section=section_name, option="output_folder", value=output_folder)
+    
+    def set_classif_input_foldr(self, input_folder:str):
+        """
+        Set the input folder option in the Classification section 
+        """
+        section_name = "Classification"
+        self.set(section=section_name, option="parent_folder", value=input_folder)
+
 if __name__ == "__main__":
     Config(Logger(__name__))
