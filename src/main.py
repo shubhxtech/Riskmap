@@ -361,8 +361,6 @@ if __name__ == '__main__':
     app.setFont(font)
 
     icon_path = os.path.join(os.path.dirname(__file__), "app.ico")
-    print(icon_path, "Icon path-----------------------\n")
-
     window = MainApp()
     window.showMaximized()
     print(time.time()-a)

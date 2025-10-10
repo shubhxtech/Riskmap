@@ -343,7 +343,7 @@ class ApiWindow(QWidget):
         map = new google.maps.Map(document.getElementById('map'), {{
             center: {self.map_centre}, // near Aizawl center
             zoom: 11,
-            minZoom: 9,
+            minZoom: 1,
             maxZoom: 16
         }});
 
