@@ -108,7 +108,7 @@ class Classify:
             return None, None
 
     def organize_images(self, check_value, output_file_path, progress_callback, labels, selected_model):
-        self.input_folder = [i for i in Path(self.parent_folder).glob('Unique')]
+        self.input_folder = Path(self.parent_folder)
         self.logger.log_status(f'input_folder for classification: {self.input_folder}')
         self.model_path = selected_model
         self.logger.log_status('Reached organize_images')
@@ -123,12 +123,11 @@ class Classify:
         self.make_folders()
 
         image_files = []
-        for folder in self.input_folder:
-            print(folder)
-            for f in folder.glob("*"):
-                print(f)
-                if f.suffix.lower() in self.image_extensions:
-                    image_files.append(f)
+        self.logger.log_status(f"Getting all images in folder {self.input_folder}")
+        for f in self.input_folder.glob("*"):
+            self.logger.log_status(f"Found image: {f}")
+            if f.suffix.lower() in self.image_extensions:
+                image_files.append(f)
 
         self.logger.log_status(f"Found {len(image_files)} images to classify")
 
@@ -200,7 +199,7 @@ class ModelLoaderThread(QThread):
 class _ClassificationWorker(QtCore.QThread):
     progress_updated = QtCore.pyqtSignal(float)
     message_logged = QtCore.pyqtSignal(str)
-    processing_done = QtCore.pyqtSignal(Path)
+    processing_done = QtCore.pyqtSignal(bool)
 
     def __init__(self, processor, check_value, selected_model, labels, output_folder):
         super().__init__()
@@ -211,7 +210,7 @@ class _ClassificationWorker(QtCore.QThread):
         self.output_folder = Path(output_folder)
 
     def run(self):
-        print('reached run')
+        print('Reached Run for Classification Worker')
         self.output_folder.mkdir(parents=True, exist_ok=True)
 
         new_filename = "classified_locations.txt"
@@ -229,7 +228,7 @@ class _ClassificationWorker(QtCore.QThread):
             self.labels,
             self.selected_model
         )
-        self.processing_done.emit(output_file_path)
+        self.processing_done.emit(True)
 
 
 class _ClassificationTimer(QtCore.QThread):
@@ -406,5 +405,7 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.text_output.append(message)
         self.text_output.verticalScrollBar().setValue(self.text_output.verticalScrollBar().maximum())
 
-    def on_process_done(self, location_file_path: Path):
-        pass
+    def on_process_done(self, valid: bool):
+        self.worker.terminate()
+        self.timer_thread.terminate()
+        self.model_status_label.setText("Processing Complete!")
