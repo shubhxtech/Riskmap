@@ -344,11 +344,7 @@ class ApiWindow(QWidget):
             center: {self.map_centre}, // near Aizawl center
             zoom: 11,
             minZoom: 9,
-            maxZoom: 16,
-            restriction: {{
-            latLngBounds: aizawlBounds,
-            strictBounds: true
-            }}
+            maxZoom: 16
         }});
 
         drawingManager = new google.maps.drawing.DrawingManager({{

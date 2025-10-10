@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import (
     QTextEdit, QLabel, QPushButton, QScrollArea, QGroupBox,
     QMessageBox, QCheckBox, QLineEdit, QHBoxLayout,  QGridLayout, QDialog
 )
-from PyQt5.QtGui import QPixmap, QFont
+from PyQt5.QtGui import QPixmap, QFont, QIcon
 from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
 from utils import resolve_path
 
@@ -360,7 +360,11 @@ if __name__ == '__main__':
     font = QFont("Arial", 10)
     app.setFont(font)
 
+    icon_path = os.path.join(os.path.dirname(__file__), "app.ico")
+    print(icon_path, "Icon path-----------------------\n")
+
     window = MainApp()
     window.showMaximized()
     print(time.time()-a)
+    app.setWindowIcon(QIcon(icon_path))
     sys.exit(app.exec_())
