@@ -8,6 +8,8 @@ Ver 0.1
 . Turned on showing cmd line processing for all processes that occur via command line
 . Created documentation and documentaion page for the app (developer-guide/modules/ApiWindow.md && index.md && developer-guide/contributing.md)
 . Added a Pixel Map to the CropWindow UI that shows the to be edited image and allows the user to modify the height of the image that is removed
+. Remove uninstaller when uninstalling
+. Add progress bars to the installation and uninstallation process 
 
 ------ Ever running changes ------
 
@@ -15,10 +17,8 @@ Ver 0.1
 
 ------ Slotted Changes ------
 
-. Check what happens when multiple images are processed. Does it show each and every image in the PixMap?
 
-
+Line 31 of Duplicates_Better.py -> os.environ['TF_KERAS_CACHE_DIR'] = resolve_path('..\models') ## Shift this hardcoded dependency to config file
 . Complete the documentation page
-. Remove uninstaller when uninstalling
+
 . Aesthetic changes to the entire App
-. Add progress bars to the installation and uninstallation process 

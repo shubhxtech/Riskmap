@@ -28,7 +28,7 @@ class DuplicateClassifier:
         self.class_color_map: Dict[str, str] = {}
 
     def load_model(self):
-        os.environ['TF_KERAS_CACHE_DIR'] = resolve_path('..\models') ## Shift this hardcoded dependacy to config file
+        os.environ['TF_KERAS_CACHE_DIR'] = resolve_path('..\models') ## Shift this hardcoded dependency to config file
         self.logger.log_status(f"os.environ['TF_KERAS_CACHE_DIR'] is set to {resolve_path('..\models')}")
 
         from tensorflow.keras.applications import EfficientNetB7
