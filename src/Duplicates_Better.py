@@ -28,7 +28,8 @@ class DuplicateClassifier:
         self.class_color_map: Dict[str, str] = {}
 
     def load_model(self):
-        os.environ['TF_KERAS_CACHE_DIR'] = resolve_path('models')
+        os.environ['TF_KERAS_CACHE_DIR'] = resolve_path('..\models') ## Shift this hardcoded dependacy to config file
+        self.logger.log_status(f"os.environ['TF_KERAS_CACHE_DIR'] is set to {resolve_path('..\models')}")
 
         from tensorflow.keras.applications import EfficientNetB7
         from tensorflow.keras.applications.efficientnet import preprocess_input
@@ -70,7 +71,7 @@ class DuplicateClassifier:
         return self.class_color_map[class_id]
 
     def _save_classified_locations(self, folder_path: Path, clusters: Dict[int, List[str]]):
-        output_file = folder_path / "classified_locations.txt"
+        output_file = folder_path / "duplicates_found.txt"
         location_class_map = {}
 
         for class_id, files in clusters.items():
@@ -152,7 +153,7 @@ class DuplicateClassifier:
         try:
             for folder_path in folder_paths:
                 time_taken = self.process_folder(folder_path, progress_callback)
-                self.logger.log_status(f"folder {folder_path.name} was processed for {time_taken}")
+                self.logger.log_status(f"Folder {folder_path.name} was processed for {time_taken}")
                 time_taken_all += time_taken
             return time_taken_all
         except Exception as e:
