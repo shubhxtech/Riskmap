@@ -9,11 +9,11 @@ from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTextEdit, QLabel, QPushButton,
     QCheckBox, QProgressBar
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QObject, pyqtSlot
+from PyQt5.QtWidgets import QFileDialog
+from PyQt5.QtCore import QThread, pyqtSignal, QObject, pyqtSlot
 from config_ import Config
 from AppLogger import Logger
 from utils import cleanup_process, resolve_path
-from tensorflow.keras.preprocessing import image
 
 class DuplicateClassifier:
     def __init__(self, config: Config, logger: Logger):
@@ -21,15 +21,14 @@ class DuplicateClassifier:
         self.logger = logger
         self.MODEL = None
         self.processor = None
-        self.loader = image
         self.metadata_file = self.config.get_duplicates_data()["metadata_file_name"]
         self.is_paused = False
         self.is_cancelled = False
         self.class_color_map: Dict[str, str] = {}
 
     def load_model(self):
-        os.environ['TF_KERAS_CACHE_DIR'] = resolve_path('..\models') ## Shift this hardcoded dependency to config file
-        self.logger.log_status(f"os.environ['TF_KERAS_CACHE_DIR'] is set to {resolve_path('..\models')}")
+        os.environ['TF_KERAS_CACHE_DIR'] = self.config.get_duplicates_model_folder() ## Shift this hardcoded dependency to config file
+        self.logger.log_status(f"os.environ['TF_KERAS_CACHE_DIR'] is set to {self.config.get_duplicates_model_folder()}")
 
         from tensorflow.keras.applications import EfficientNetB7
         from tensorflow.keras.applications.efficientnet import preprocess_input
@@ -39,6 +38,8 @@ class DuplicateClassifier:
         self.logger.log_status("EfficientNetB7 model loaded")
 
     def _load_and_preprocess_image(self, img_path: Path) -> np.ndarray:
+        from tensorflow.keras.preprocessing import image
+        self.loader = image
         img = self.loader.load_img(img_path, target_size=(600, 600))
         img_array = self.loader.img_to_array(img)
         img_array = np.expand_dims(img_array, axis=0)
@@ -62,8 +63,8 @@ class DuplicateClassifier:
     
     def _cluster_features(self, features: np.ndarray) -> np.ndarray:
         from sklearn.cluster import DBSCAN
-        clustering = DBSCAN(eps=0.5, min_samples=2, metric='euclidean').fit(features)
-        return clustering.labels_
+        cluster_labels = DBSCAN(eps=0.5, min_samples=2, metric='euclidean').fit_predict(features)
+        return cluster_labels
 
     def _assign_color(self, class_id: str) -> str:
         if class_id not in self.class_color_map:
@@ -99,17 +100,20 @@ class DuplicateClassifier:
         self.source_folder = folder_path
 
         features, file_names = self._extract_features(images)
+        if not features:
+            self.logger.log_exception(f"No features found when processing ")
         labels = self._cluster_features(features)
 
         clusters: Dict[int, List[str]] = {}
         clusters_unique: Dict[int, List[str]] = {}
         for label, file_name in zip(labels, file_names):
+            self.logger.log_status(f"Label for file {file_name} : {label} (Duplicates Checker)")
             if label != -1:
                 clusters.setdefault(label, []).append(file_name)
             else:
                 clusters_unique.setdefault(label, []).append(file_name)
 
-        base_path = Path(self.config.get_duplicates_data()["destination_parent_folder"])
+        base_path = self.config.get_duplicates_destination_folder()
         os.makedirs(base_path, exist_ok=True)
 
         total = len(clusters)
@@ -196,12 +200,12 @@ class DuplicatesWorker(QObject):
             self.processor = DuplicateClassifier(self.config, self.logger)
             self.processor.load_model()
             elapsed = self.processor.process_multiple_folders(
-                [self.config.get_input_folder_dup()],
+                [self.config.get_duplicates_source_folder()],
                 self.progress_updated.emit
             )
 
             if self.remove_dir:
-                cleanup_process(self.remove_dir, self.config.get_input_folder_dup())
+                cleanup_process(self.remove_dir, self.config.get_duplicates_source_folder())
 
             self.processing_complete.emit(elapsed)
         except Exception as e:
@@ -225,7 +229,8 @@ class DuplicatesWindow(QWidget):
         super().__init__()
         self.config = config
         self.logger = logger
-        self.save_folder = self.config.get_current_working_folder()
+        self.source_folder = self.config.get_duplicates_source_folder()
+        self.destination_folder = self.config.get_duplicates_destination_folder()
         self.worker_thread = None
         self.timer_thread = None
         self.worker = None
@@ -241,11 +246,17 @@ class DuplicatesWindow(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
-        self.folder_btn = QPushButton("Select Output Folder")
-        self.folder_label = QLabel(f"{self.save_folder}")
-        self.folder_btn.clicked.connect(self.choose_folder)
-        layout.addWidget(self.folder_btn)
-        layout.addWidget(self.folder_label)
+        self.source_folder_btn = QPushButton("Select Input Folder")
+        self.source_folder_label = QLabel(f"{self.source_folder}")
+        self.source_folder_btn.clicked.connect(self.choose_source_folder)
+        layout.addWidget(self.source_folder_btn)
+        layout.addWidget(self.source_folder_label)
+
+        self.destination_folder_btn = QPushButton("Select Output Folder")
+        self.destination_folder_label = QLabel(f"{self.destination_folder}")
+        self.destination_folder_btn.clicked.connect(self.choose_destination_folder)
+        layout.addWidget(self.destination_folder_btn)
+        layout.addWidget(self.destination_folder_label)
 
         self.files_processed_text = QTextEdit()
         self.files_processed_text.setReadOnly(True)
@@ -258,7 +269,7 @@ class DuplicatesWindow(QWidget):
         self.progress_bar.setRange(0, 100)
         layout.addWidget(self.progress_bar)
 
-        self.check_box = QCheckBox(f"Remove {self.config.get_input_folder_dup().name} directory")
+        self.check_box = QCheckBox(f"Remove {self.config.get_duplicates_source_folder().name} directory")
         layout.addWidget(self.check_box)
 
         button_layout = QHBoxLayout()
@@ -286,15 +297,25 @@ class DuplicatesWindow(QWidget):
         layout.addWidget(self.status_label)
         self.setLayout(layout)
 
-    def choose_folder(self):
-        from PyQt5.QtWidgets import QFileDialog
+    def choose_destination_folder(self):
         try:
             folder = QFileDialog.getExistingDirectory(self, "Select Output Folder", options=QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks)
             if folder:
-                self.save_folder = folder
-                self.config.set_duplicates_save_folder(folder)
-                self.folder_label.setText(folder)
+                self.destination_folder = folder
+                self.config.set_duplicates_destination_folder(folder)
+                self.destination_folder_label.setText(folder)
                 self.logger.log_status(f"Output folder set to {folder}")
+        except Exception as e:
+            self.logger.log_exception(f"Folder selection failed: {e}")
+    
+    def choose_source_folder(self):
+        try:
+            folder = QFileDialog.getExistingDirectory(self, "Select Input Folder", options=QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks)
+            if folder:
+                self.source_folder = folder
+                self.config.set_duplicates_source_folder(folder)
+                self.destination_folder_label.setText(folder)
+                self.logger.log_status(f"Input folder set to {folder}")
         except Exception as e:
             self.logger.log_exception(f"Folder selection failed: {e}")
 
@@ -325,6 +346,7 @@ class DuplicatesWindow(QWidget):
         self.process_button.setEnabled(False)
         self.pause_button.setEnabled(True)
         self.cancel_button.setEnabled(True)
+        self.status_label.setText("Processing started")
 
     def update_timer(self, seconds):
         self.timer_label.setText(f"Elapsed Time: {seconds:.2f} sec")
@@ -336,6 +358,7 @@ class DuplicatesWindow(QWidget):
         self.resume_button.setEnabled(False)
         self.cancel_button.setEnabled(False)
         self.files_processed_text.append(f"Done. Processed in {seconds:.2f} seconds.")
+        self.status_label.setTextf("Done. Processed in {seconds:.2f} seconds.")
         if self.worker_thread:
             self.worker_thread.quit()
 

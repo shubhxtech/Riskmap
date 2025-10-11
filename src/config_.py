@@ -428,12 +428,6 @@ class Config:
         option = 'image_extensions'
         return self.get(section=section, option=option, fallback= '.jpg,.jpeg,.png,.bmp,.tiff')
     
-    def get_input_folder_dup(self) -> Path:
-        """
-        Gets the folder path of the duplicates input folder
-        """
-        return Path(resolve_path(self.get(section="BUILDING_DETECTION", option="output_dir", fallback="data\\detected")))
-    
     def get_current_input_folder_class(self):
         """
         Gets the folder path of the duplicates input folder
@@ -537,13 +531,6 @@ class Config:
         section_name = "General"
         self.set(section=section_name, option="blur_region_height", value=blur_height)
 
-    def set_duplicates_save_folder(self, folder: Path|str):
-        """
-        Set the output folder of duplicates module processing
-        """
-        section_name="Duplicates"
-        self.set(section=section_name, option="destination_parent_folder", value=folder)
-
     def set_model_path(self, model_path):
         """
         Set the value of model_path in building detection
@@ -571,6 +558,41 @@ class Config:
         """
         section_name = "Classification"
         self.set(section=section_name, option="parent_folder", value=input_folder)
+
+    def set_duplicates_destination_folder(self, folder: str):
+        """
+        Set the output folder of duplicates module processing
+        """
+        section_name="Duplicates"
+        self.set(section=section_name, option="destination_parent_folder", value=folder)
+
+    def set_duplicates_source_folder(self, folder: str):
+        """
+        Set the output folder of duplicates module processing
+        """
+        section_name="Duplicates"
+        self.set(section=section_name, option="source_folder", value=folder)
+
+    def get_duplicates_destination_folder(self):
+        """
+        Get the destination parent folder option of the duplicates  module
+        """
+        section_name = "Duplicates"
+        return Path(resolve_path(self.get(section=section_name, option="destination_parent_folder")))
+
+    def get_duplicates_source_folder(self):
+        """
+        Get the source folder option of the duplicates module
+        """
+        section_name = "Duplicates"
+        return self.set(section=section_name, option="source_folder")
+
+    def get_duplicates_model_folder(self):
+        """
+        Get the model folder for duplicates module
+        """
+        section = "Duplicates"
+        return Path(resolve_path(self.get(section=section, option="model_folder")))
 
 if __name__ == "__main__":
     Config(Logger(__name__))
