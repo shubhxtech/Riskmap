@@ -73,8 +73,8 @@ class Classify:
 
     def make_folders(self):
         names = self.config.get_foldr_names_classif().split(',')
-        foldr_name = self.config.get_classif_folder_name()
-        foldr = Path(self.output_folder) / foldr_name
+        foldr_name = self.config.get_classif_folder_name() # Is dead code
+        foldr = Path(self.output_folder)
         for i in names:
             dir = foldr / i
             try:
@@ -140,7 +140,7 @@ class Classify:
         }
 
         with open(output_file_path, 'w') as locfile:
-            print(output_file_path)
+            self.logger.log_status(output_file_path)
             for image_path in tqdm(image_files, desc="Processing images"):
                 predicted_class, confidence = self.predict_image(str(image_path))
 
