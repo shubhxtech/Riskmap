@@ -79,7 +79,7 @@ class Logger:
             else:
                 self.logger.info(info)  # Default to INFO if the status is not recognized
         except Exception as e:
-            show_error(f"Error while logging message: {e}")
+            raise Exception(f"Error while logging message: {e}") from e
 
     def log_exception(self, exception):
         """
