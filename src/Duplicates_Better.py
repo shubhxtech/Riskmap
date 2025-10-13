@@ -27,7 +27,7 @@ class DuplicateClassifier:
         self.class_color_map: Dict[str, str] = {}
 
     def load_model(self):
-        os.environ['TF_KERAS_CACHE_DIR'] = self.config.get_duplicates_model_folder() ## Shift this hardcoded dependency to config file
+        os.environ['TF_KERAS_CACHE_DIR'] = str(self.config.get_duplicates_model_folder()) 
         self.logger.log_status(f"os.environ['TF_KERAS_CACHE_DIR'] is set to {self.config.get_duplicates_model_folder()}")
 
         from tensorflow.keras.applications import EfficientNetB7
@@ -63,7 +63,7 @@ class DuplicateClassifier:
     
     def _cluster_features(self, features: np.ndarray) -> np.ndarray:
         from sklearn.cluster import DBSCAN
-        cluster_labels = DBSCAN(eps=0.5, min_samples=2, metric='euclidean').fit_predict(features)
+        cluster_labels = DBSCAN(eps=0.26, min_samples=2, metric='cosine').fit_predict(features)
         return cluster_labels
 
     def _assign_color(self, class_id: str) -> str:
@@ -100,7 +100,17 @@ class DuplicateClassifier:
         self.source_folder = folder_path
 
         features, file_names = self._extract_features(images)
-        if not features:
+        self.logger.log_status(f"features shape:{features.shape}")
+        self.logger.log_status(f"dtype:{features.dtype}")
+        self.logger.log_status(f"any NaN?:{np.isnan(features).any()}")
+        self.logger.log_status(f"min/max/mean: {np.nanmin(features)},{np.nanmax(features)}, {np.nanmean(features)}")
+        norms = np.linalg.norm(features, axis=1)
+        self.logger.log_status(f"feature norms (first 10): {norms[:10]}")
+        # If you normalized:
+        from sklearn.preprocessing import normalize
+        fn = normalize(features, axis=1)
+        self.logger.log_status(f"normalized norms (first 10):{np.linalg.norm(fn, axis=1)[:10]}")
+        if len(features)<=0:
             self.logger.log_exception(f"No features found when processing ")
         labels = self._cluster_features(features)
 
@@ -115,7 +125,17 @@ class DuplicateClassifier:
 
         base_path = self.config.get_duplicates_destination_folder()
         os.makedirs(base_path, exist_ok=True)
+        self.logger.log_status(f"clusters (clusters): {clusters}")
+        self.logger.log_status(f"uniques (clusters_unique): {clusters_unique}")
 
+
+        all_cluster_files = set(clusters)
+        all_unique_files = set(clusters_unique)
+        both = sorted(list(all_cluster_files & all_unique_files))
+        only_clusters = sorted(list(all_cluster_files - all_unique_files))
+        only_uniques = sorted(list(all_unique_files - all_cluster_files))
+        self.logger.log_status(f"both:{both}, only_clusters: {only_clusters}, only_uniques: {only_uniques}") 
+        
         total = len(clusters)
         for count, (cluster_id, files) in enumerate(clusters.items(), start=1):
             while self.is_paused:
@@ -159,9 +179,9 @@ class DuplicateClassifier:
                 time_taken = self.process_folder(folder_path, progress_callback)
                 self.logger.log_status(f"Folder {folder_path.name} was processed for {time_taken}")
                 time_taken_all += time_taken
-            return time_taken_all
         except Exception as e:
             self.logger.log_exception(f'An error occured while processing duplicates: {e}')
+        return time_taken_all
 
 
 class DuplicateModelLoaderThread(QThread):
@@ -314,7 +334,7 @@ class DuplicatesWindow(QWidget):
             if folder:
                 self.source_folder = folder
                 self.config.set_duplicates_source_folder(folder)
-                self.destination_folder_label.setText(folder)
+                self.source_folder_label.setText(folder)
                 self.logger.log_status(f"Input folder set to {folder}")
         except Exception as e:
             self.logger.log_exception(f"Folder selection failed: {e}")
@@ -358,7 +378,7 @@ class DuplicatesWindow(QWidget):
         self.resume_button.setEnabled(False)
         self.cancel_button.setEnabled(False)
         self.files_processed_text.append(f"Done. Processed in {seconds:.2f} seconds.")
-        self.status_label.setTextf("Done. Processed in {seconds:.2f} seconds.")
+        self.status_label.setText(f"Done. Processed in {seconds:.2f} seconds.")
         if self.worker_thread:
             self.worker_thread.quit()
 

@@ -46,7 +46,7 @@ class Config:
                 "blur_region_height": "250",
                 "name_of_api_window": "Download",
                 "name_of_crop_window": "Process Files",
-                "name_of_building_detection": "Building Detection",
+                "name_of_BUILDING_DETECTION": "Building Detection",
                 "name_of_duplicates_window": "Remove Duplicates",
                 "name_of_classification": "Classify",
                 "name_of_training_window": "Train Model",
@@ -245,7 +245,7 @@ class Config:
         section = 'Download'
         return self.get_all(section = section)
 
-    def get_building_detection_data(self) -> dict:
+    def get_BUILDING_DETECTION_data(self) -> dict:
         """
         Get the current Building Detection settings
         """
@@ -280,7 +280,7 @@ class Config:
         section = "Model_Training"
         return self.get_all(section=section)
 
-    def get_building_detection_recommended(self) -> dict[str, str]:
+    def get_BUILDING_DETECTION_recommended(self) -> dict[str, str]:
         """
         Returns a dictionary of recommended/default hyperparameter values
         for BUILDING_DETECTION. Format: {option_name: string_value}.
@@ -298,7 +298,7 @@ class Config:
     # ------------------------------------------------------------------
     # 2. Helper to set an individual BUILDING_DETECTION option and save.
     # ------------------------------------------------------------------
-    def set_building_detection_param(self, option: str, value: str) -> bool:
+    def set_BUILDING_DETECTION_param(self, option: str, value: str) -> bool:
         """
         Sets one hyperparameter under section “BUILDING_DETECTION” to value (as string),
         writes it immediately to the .ini, and logs the change. Returns True on success.
@@ -535,14 +535,14 @@ class Config:
         """
         Set the value of model_path in building detection
         """
-        section_name = "Building_Detection"
+        section_name = "BUILDING_DETECTION"
         self.set(section=section_name, option="model_path", value=model_path)
 
     def set_output_detection_path(self, output_path):
         """
         Set the value of output_dir in building detection
         """
-        section_name = "Building_Detection"
+        section_name = "BUILDING_DETECTION"
         self.set(section=section_name, option="output_dir", value=output_path)
 
     def set_classif_output_foldr(self, output_folder:str):
@@ -585,7 +585,7 @@ class Config:
         Get the source folder option of the duplicates module
         """
         section_name = "Duplicates"
-        return self.set(section=section_name, option="source_folder")
+        return Path(resolve_path(self.get(section=section_name, option="source_folder")))
 
     def get_duplicates_model_folder(self):
         """
