@@ -1,4 +1,4 @@
-import tensorflow as tf
+# LAZY IMPORT: TensorFlow is imported inside ObjectDetectionProcessor methods to improve startup time
 import numpy as np
 from PIL import Image
 from pathlib import Path
@@ -6,28 +6,41 @@ from PyQt5.QtCore import QObject, pyqtSignal
 
 from config_ import Config
 from AppLogger import Logger
+from utils import resolve_path
 
 class ObjectDetectionProcessor(QObject):
     progress_updated = pyqtSignal(float)
     log_message = pyqtSignal(str)
     image_saved = pyqtSignal(str)
+    # New signal: emits (image_path, list_of_detections) for UI visualization
+    visualization_data_ready = pyqtSignal(str, list)
     finished = pyqtSignal()
 
     def __init__(self, config: Config, logger: Logger):
         super().__init__()
         self.config = config
         self.logger = logger
+        
+        # Lazy loading for TensorFlow
+        self._tf = None
 
         self._load_settings()
-        self.detector = self._load_detector()
+        self.detector = None # Load lazily in process() to avoid blocking UI
         self.output_dir.mkdir(parents=True, exist_ok=True)
+    
+    def _ensure_tensorflow_loaded(self):
+        """Lazy load TensorFlow only when needed"""
+        if self._tf is None:
+            import tensorflow as tf
+            self._tf = tf
+            self.logger.log_status("TensorFlow loaded for Building Detection")
 
     def _load_settings(self):
         """
         Fetch all BUILDING_DETECTION settings from config (typed).
         """
         # Raw dict (string → string), if you ever need it:
-        self.settings = self.config.get_building_detection_data()
+        self.settings = self.config.get_BUILDING_DETECTION_data()
 
         # Typed getters:
         self.model_path = self.config.get_bd_model_path()
@@ -51,8 +64,9 @@ class ObjectDetectionProcessor(QObject):
         """
         Attempt to load the TF SavedModel from model_path. If it fails, log and return None.
         """
+        self._ensure_tensorflow_loaded()
         try:
-            loaded = tf.saved_model.load(self.model_path)
+            loaded = self._tf.saved_model.load(resolve_path(self.model_path))
             return loaded.signatures['default']
         except Exception as e:
             self.logger.log_exception(f"Failed to load model at {self.model_path}. Error: {e}")
@@ -164,11 +178,11 @@ class ObjectDetectionProcessor(QObject):
         Return a tf.Tensor of shape [1,3600,3600,3] or None on error.
         """
         try:
-            image_raw = tf.io.read_file(str(image_path))
-            image = tf.image.decode_image(image_raw, channels=3)
-            image_resized = tf.image.resize(image, (3600, 3600))
-            image_norm = tf.cast(image_resized, tf.float32) / 255.0
-            return tf.expand_dims(image_norm, axis=0)
+            image_raw = self._tf.io.read_file(str(image_path))
+            image = self._tf.image.decode_image(image_raw, channels=3)
+            image_resized = self._tf.image.resize(image, (3600, 3600))
+            image_norm = self._tf.cast(image_resized, self._tf.float32) / 255.0
+            return self._tf.expand_dims(image_norm, axis=0)
         except Exception as e:
             self.logger.log_exception(f"Error reading image {image_path}: {e}")
             return None
@@ -178,6 +192,15 @@ class ObjectDetectionProcessor(QObject):
         Main entrypoint: iterate over all .jpg/.jpeg/.png files in input_dir,
         run detector, dedupe/filter, crop + save, emit progress/log, then finish.
         """
+        # Load model here (in worker thread)
+        if self.detector is None:
+            self.log_message.emit("Loading detection model... (this may take a moment)")
+            self.detector = self._load_detector()
+            if self.detector is None:
+                self.log_message.emit("Failed to load model. Aborting.")
+                self.finished.emit()
+                return
+
         image_files = (
             list(self.input_dir.glob("*.jpg")) +
             list(self.input_dir.glob("*.jpeg")) +
@@ -197,16 +220,47 @@ class ObjectDetectionProcessor(QObject):
 
             try:
                 results = self.detector(image_tensor)
-                raw_boxes   = results['detection_boxes'].numpy()
-                raw_scores  = results['detection_scores'].numpy().astype(np.float32)
-                raw_classes = results['detection_class_entities'].numpy()
-                original_image = tf.squeeze(image_tensor).numpy()  # [3600×3600×3]
+                # DEBUG: Log keys to see what the model actually returns
+                self.logger.log_status(f"Model output keys: {list(results.keys())}") 
+                
+                raw_boxes = results['detection_boxes'].numpy()
+                raw_scores = results['detection_scores'].numpy().astype(np.float32)
+
+                if 'detection_class_entities' in results:
+                    raw_classes = results['detection_class_entities'].numpy()
+                elif 'detection_classes' in results:
+                    # Fallback for models returning class indices (e.g. COCO)
+                    # We need a map. Minimal COCO map for common objects:
+                    # Note: Indices are floats in tensor, need cast to int.
+                    coco_map = {
+                        1: 'Person', 2: 'Bicycle', 3: 'Car', 4: 'Motorcycle', 6: 'Bus', 8: 'Truck',
+                        10: 'Traffic light', 13: 'Stop sign', 
+                        # Note: COCO does not have 'Building' or 'House'
+                    }
+                    class_indices = results['detection_classes'].numpy().astype(int)
+                    # Convert to byte strings to match existing logic
+                    raw_classes = []
+                    for idx in class_indices:
+                        name = coco_map.get(idx, f"Class_{idx}")
+                        raw_classes.append(name.encode('utf-8'))
+                    raw_classes = np.array(raw_classes)
+                else:
+                    raise KeyError("Model output missing 'detection_class_entities' or 'detection_classes'")
+
+                original_image = self._tf.squeeze(image_tensor).numpy()  # [3600×3600×3]
             except Exception as e:
                 self.logger.log_exception(f"Detection failed on {image_file.name}: {e}")
+                self.log_message.emit(f"Error processing {image_file.name}: {e}")
                 continue
 
             detections = self._deduplicate_boxes(raw_boxes, raw_scores, raw_classes)
             base_name = image_file.stem
+
+            if not detections:
+                self.log_message.emit(f"No objects found matching: {self.target_classes}")
+            
+            # Emit visualization data (path must be string)
+            self.visualization_data_ready.emit(str(image_file), detections)
 
             for i, det in enumerate(detections, start=1):
                 save_path = self.output_dir / f"{base_name}-{i}.jpg"

@@ -1,11 +1,12 @@
 import os
+import sys
 import json
 import cv2
 import numpy as np
 from pathlib import Path
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QLineEdit, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QGraphicsLineItem, QCheckBox
-from PyQt5.QtGui import QPixmap, QImage, QPen, QPainter
-from PyQt5.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, QPointF, Qt
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel, QFileDialog, QLineEdit, QGraphicsView, QGraphicsScene, QGraphicsPixmapItem, QGraphicsLineItem, QCheckBox, QGraphicsDropShadowEffect
+from PyQt5.QtGui import QPixmap, QImage, QPen, QPainter, QColor, QFont, QPainterPath, QBrush
+from PyQt5.QtCore import QObject, QThread, pyqtSignal, pyqtSlot, QPointF, Qt, QTimer, QPropertyAnimation, QRectF, QEasingCurve, QParallelAnimationGroup
 from config_ import Config
 from AppLogger import Logger
 from utils import ensure_directory_exists, save_image, resolve_path
@@ -118,68 +119,302 @@ class ImageProcessorWorker(QObject):
 
 
 class ImageCropperView(QGraphicsView):
-    def __init__(self,config:Config,  logger: Logger, parent=None):
+    def __init__(self, config: Config, logger: Logger, parent=None):
         super().__init__(parent)
         self.logger = logger
         self.config = config
         self.scene = QGraphicsScene(self)
         self.setScene(self.scene)
         self.setRenderHint(QPainter.Antialiasing)
-        self.image_item = None
-        self.h_line = None
-        self.v_line = None
+        self.setRenderHint(QPainter.SmoothPixmapTransform)
+        
         self.img_blur_height = self.config.get_blur_size()
         self.cv_img = None
+        
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setDragMode(QGraphicsView.NoDrag)
+        
+        # Animation state
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.advance_animation)
+        self.animation_step = 0
+        self.is_animating = True
+        
+        # Multiple images support
+        self.image_list = []
+        self.current_image_index = 0
+        
+        # Graphics Items
+        self.full_image_item = None
+        self.left_part_item = None
+        self.right_part_item = None
+        self.blur_cover_item = None
+        self.caption_text = None
+        
+        # Settings
+        self.anim_speed = 1200  # ms per phase (1.2 seconds)
+        self.timer.start(self.anim_speed)
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
-        self._update_display()
+        if not self.is_animating:
+            self._update_static_display()
+        else:
+             self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
 
     def set_image(self, cv_img, img_height):
-        self.scene.clear()
-        self.img_blur_height = img_height
-        self.cv_img = cv_img
-        self._update_display()
-
-    def _update_display(self):
-        """
-        updates the display
-        """
-        if self.cv_img is None:
-            return
-
-        img = cv2.cvtColor(self.cv_img, cv2.COLOR_BGR2RGB)
-        height, width, channels = img.shape
-        bytes_per_line = channels * width
-        q_img = QImage(img.data, width, height, bytes_per_line, QImage.Format_RGB888)
-        pixmap = QPixmap.fromImage(q_img)
-        self.scene.clear()
-
-        self.image_item = QGraphicsPixmapItem(pixmap)
-        self.scene.addItem(self.image_item)
-        self.fitInView(self.image_item, Qt.KeepAspectRatio)
-        self._draw_lines(pixmap.width(), pixmap.height())
-        self.config.set_size_of_images(height, width)
-
-    def _draw_lines(self, width, height):
-        pen = QPen(Qt.red, 5, Qt.DashLine)
-
-        # Horizontal line (modifiable height)
-        y = min(max(0, self.img_blur_height), height)
-        y = height-y
-        self.h_line = self.scene.addLine(0, y, width, y, pen)
-
-        # Vertical middle line
-        x = width // 2
-        self.v_line = self.scene.addLine(x, 0, x, height, pen)
+        # Support both single image and list of images
+        if isinstance(cv_img, list):
+            self.image_list = cv_img
+            self.cv_img = cv_img[0] if cv_img else None
+        else:
+            self.image_list = [cv_img] if cv_img is not None else []
+            self.cv_img = cv_img
+            
+        self.current_image_index = 0
+        self.img_blur_height = int(img_height)
+        
+        if self.is_animating:
+            self.restart_animation()
+        else:
+            self._update_static_display()
 
     def update_crop_height(self, blur_height):
         self.img_blur_height = int(blur_height)
-        self.logger.log_status(f'new blur height = {self.img_blur_height}')
-        self._update_display()
+        # Stop animation when user interacts
+        self.stop_animation() 
+        self._update_static_display()
+
+    def stop_animation(self):
+        self.is_animating = False
+        self.timer.stop()
+        self._update_static_display()
+
+    def restart_animation(self):
+        self.is_animating = True
+        self.animation_step = 0
+        self.timer.start(self.anim_speed)
+        self.advance_animation()
+
+    def _update_static_display(self):
+        if self.cv_img is None: return
+        self.scene.clear()
+        
+        # Show full image with lines for editing
+        pixmap = self._cv_to_pixmap(self.cv_img)
+        self.full_image_item = QGraphicsPixmapItem(pixmap)
+        self.scene.addItem(self.full_image_item)
+        self.scene.setSceneRect(QRectF(pixmap.rect()))
+        
+        # Draw Edit Lines
+        pen = QPen(Qt.red, 4, Qt.DashLine)
+        h = pixmap.height()
+        w = pixmap.width()
+        
+        # Crop Line
+        y = h - self.img_blur_height
+        self.scene.addLine(0, y, w, y, pen)
+        
+        # Split Line
+        self.scene.addLine(w/2, 0, w/2, h, pen)
+        
+        self.fitInView(self.full_image_item, Qt.KeepAspectRatio)
+
+    def advance_animation(self):
+        if self.cv_img is None or not self.image_list: 
+            return
+            
+        self.scene.clear()
+        
+        # Get current image and convert to simple pixmap
+        current_cv_img = self.image_list[self.current_image_index]
+        base_pixmap = self._cv_to_pixmap(current_cv_img)
+        w, h = base_pixmap.width(), base_pixmap.height()
+        
+        # Apply rounded corners to the MAIN base pixmap
+        rounded_pixmap = self._get_rounded_pixmap(base_pixmap, radius=30)
+        
+        self.scene.setSceneRect(0, 0, w, h)
+        
+        # Cross-platform font
+        _anim_font = "Helvetica Neue" if sys.platform == "darwin" else "Segoe UI"
+        title_font = QFont(_anim_font, int(h/22), QFont.Bold)
+        desc_font = QFont(_anim_font, int(h/30))
+        
+        step = self.animation_step % 4
+        
+        # Helper for stylish text badge
+        def add_badge_text(text, x, y, bg_color=QColor(0, 0, 0, 180)):
+            # Text item
+            t_item = self.scene.addText(text, title_font)
+            t_item.setDefaultTextColor(Qt.white)
+            
+            # Badge background (Round Rect)
+            brect = t_item.boundingRect()
+            padding = 10
+            rect = QRectF(x, y, brect.width() + 2*padding, brect.height())
+            
+            path = QPainterPath()
+            path.addRoundedRect(rect, 10, 10)
+            
+            bg = self.scene.addPath(path, QPen(Qt.NoPen), QBrush(bg_color))
+            bg.setZValue(1) # Behind text
+            
+            t_item.setPos(x + padding, y)
+            t_item.setZValue(2)
+            return bg
+
+        # Shadow helper for elements inside image
+        def add_shadow(item):
+            eff = QGraphicsDropShadowEffect()
+            eff.setBlurRadius(15)
+            eff.setColor(QColor(0,0,0,150))
+            eff.setOffset(0, 5)
+            item.setGraphicsEffect(eff)
+
+        # Image Counter Badge (Top Right)
+        if len(self.image_list) > 1:
+            counter_text = f"Image {self.current_image_index + 1} / {len(self.image_list)}"
+            # Calculate position based on simplified text width estimate or hardcoded right align
+            # Since we can't easily get width before adding, we add standard text first to measure
+            dummy = self.scene.addText(counter_text, title_font)
+            c_width = dummy.boundingRect().width()
+            self.scene.removeItem(dummy)
+            add_badge_text(counter_text, w - c_width - 40, 20, QColor(0, 0, 0, 100))
+
+        if step == 0:
+            # Phase 1: Input
+            item = QGraphicsPixmapItem(rounded_pixmap)
+            add_shadow(item)
+            self.scene.addItem(item)
+            
+            add_badge_text("Step 1: Input Source", 20, 20)
+            
+            self._draw_minimal_progress(w, h, 0, 3)
+            
+        elif step == 1:
+            # Phase 2: Identify Blur
+            item = QGraphicsPixmapItem(rounded_pixmap)
+            add_shadow(item)
+            self.scene.addItem(item)
+            
+            crop_y = h - self.img_blur_height
+            
+            # Highlight blur area (using path for rounded bottom corners matches)
+            # Simpler: Just overlay rect clipped to shape? 
+            # We'll just draw a rect overlay.
+            
+            blur_rect = self.scene.addRect(0, crop_y, w, self.img_blur_height, 
+                                          QPen(Qt.NoPen), QColor(255, 50, 50, 60))
+                                          
+            # Dashed Line
+            line = self.scene.addLine(0, crop_y, w, crop_y, QPen(QColor(255, 255, 255), 2, Qt.DashLine))
+            add_shadow(line)
+            
+            add_badge_text("Step 2: Detect Blur", 20, 20)
+            
+            # Info badge near cut
+            add_badge_text(f"Cut: {self.img_blur_height}px", 20, crop_y - 50, QColor(200, 50, 50, 200))
+
+            self._draw_minimal_progress(w, h, 1, 3)
+            
+        elif step == 2:
+            # Phase 3: Split
+            # Create a rounded cropped image
+            crop_y = h - self.img_blur_height
+            cropped_orig = base_pixmap.copy(0, 0, w, crop_y)
+            rounded_cropped = self._get_rounded_pixmap(cropped_orig, 30)
+            
+            item = QGraphicsPixmapItem(rounded_cropped)
+            add_shadow(item)
+            self.scene.addItem(item)
+            
+            # Split Line
+            split = self.scene.addLine(w/2, 0, w/2, crop_y, QPen(QColor(255, 255, 255), 3, Qt.DashLine))
+            add_shadow(split)
+            
+            add_badge_text("Step 3: Vertical Split", 20, 20)
+            
+            self._draw_minimal_progress(w, h, 2, 3)
+            
+        elif step == 3:
+            # Phase 4: Output
+            crop_y = h - self.img_blur_height
+            cropped_orig = base_pixmap.copy(0, 0, w, crop_y)
+            
+            w_half = w // 2
+            left_orig = cropped_orig.copy(0, 0, w_half, crop_y)
+            right_orig = cropped_orig.copy(w_half, 0, w_half, crop_y)
+            
+            # Round the separated parts
+            r_left = self._get_rounded_pixmap(left_orig, 20)
+            r_right = self._get_rounded_pixmap(right_orig, 20)
+            
+            l_item = QGraphicsPixmapItem(r_left)
+            r_item = QGraphicsPixmapItem(r_right)
+            add_shadow(l_item)
+            add_shadow(r_item)
+            
+            gap = w * 0.04
+            l_item.setPos(-gap, 0)
+            r_item.setPos(w_half + gap, 0)
+            
+            self.scene.addItem(l_item)
+            self.scene.addItem(r_item)
+            
+            add_badge_text("Output: Split & Clean", 20, 20, QColor(0, 150, 100, 200))
+            
+            self._draw_minimal_progress(w, h, 3, 3)
+        
+        self.fitInView(self.scene.sceneRect(), Qt.KeepAspectRatio)
+        self.animation_step += 1
+        
+        if self.animation_step % 4 == 0 and len(self.image_list) > 1:
+            self.current_image_index = (self.current_image_index + 1) % len(self.image_list)
+            self.cv_img = self.image_list[self.current_image_index]
+            
+    def _get_rounded_pixmap(self, pixmap, radius=20):
+        """Returns a new pixmap with rounded corners"""
+        if pixmap.isNull(): return pixmap
+        
+        rounded = QPixmap(pixmap.size())
+        rounded.fill(Qt.transparent)
+        
+        painter = QPainter(rounded)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.setRenderHint(QPainter.SmoothPixmapTransform)
+        
+        path = QPainterPath()
+        rect = QRectF(0, 0, pixmap.width(), pixmap.height())
+        path.addRoundedRect(rect, radius, radius)
+        
+        painter.setClipPath(path)
+        painter.drawPixmap(0, 0, pixmap)
+        painter.end()
+        return rounded
+    
+    def _draw_minimal_progress(self, w, h, current, total):
+        """Minimal thin progress bar at bottom"""
+        bar_height = 3
+        bar_y = h - 10
+        
+        # Transparent track
+        self.scene.addRect(0, bar_y, w, bar_height, QPen(Qt.NoPen), QColor(255, 255, 255, 30))
+        
+        # Active progress
+        rect_width = w / (total + 1)
+        x_pos = rect_width * current
+        
+        # Smooth accent color
+        self.scene.addRect(x_pos, bar_y, rect_width, bar_height, 
+                          QPen(Qt.NoPen), QColor(10, 140, 207))  # Brand blue
+
+    def _cv_to_pixmap(self, cv_img):
+        img = cv2.cvtColor(cv_img, cv2.COLOR_BGR2RGB)
+        h, w, c = img.shape
+        q_img = QImage(img.data, w, h, c*w, QImage.Format_RGB888)
+        return QPixmap.fromImage(q_img)
 
 class CropWindow(QWidget):
     def __init__(self, config: Config, logger: Logger):
@@ -198,7 +433,10 @@ class CropWindow(QWidget):
 
     def init_ui(self):
         self.layout = QVBoxLayout()           # Main layout (Vertical)
+        self.layout.setContentsMargins(20, 20, 20, 20)
+        self.layout.setSpacing(15)
         self.layout_2 = QHBoxLayout()         # Top row layout
+        self.layout_2.setSpacing(10)
 
         # Inputs and buttons
         self.folder_input = QLineEdit(self)
@@ -211,9 +449,11 @@ class CropWindow(QWidget):
 
         self.process_button = QPushButton("Start Processing", self)
         self.status_label = QLabel("Status: Idle", self)
+        self.status_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
 
         # Column 1 layout
         vert_layout_1 = QVBoxLayout()
+        vert_layout_1.setSpacing(5)
         vert_layout_1.addWidget(self.folder_input)
         vert_layout_1.addWidget(self.save_folder_input)
         container_widget_1 = QWidget()
@@ -222,6 +462,7 @@ class CropWindow(QWidget):
 
         # Column 2 layout
         vert_layout_2 = QVBoxLayout()
+        vert_layout_2.setSpacing(5)
         vert_layout_2.addWidget(self.browse_button)
         vert_layout_2.addWidget(self.browse_button_save)
         container_widget_2 = QWidget()
@@ -243,6 +484,7 @@ class CropWindow(QWidget):
 
         # UI controls for crop height
         controls_layout = QHBoxLayout()
+        controls_layout.setSpacing(10)
         self.use_custom_crop = QCheckBox("Use custom values?")
         self.use_custom_crop.setChecked(False)
 
@@ -286,14 +528,21 @@ class CropWindow(QWidget):
         self.supported_files = tuple(
             item.strip() for item in self.config.get_allowed_file_types().split(',')
         )
-        first_image_path = next((p for p in image_paths if p.suffix.lower() in self.supported_files), None)
-
-
-        if first_image_path:
-            self.logger.log_status(f"Read {str(first_image_path)} for display")
-            img = cv2.imread(str(first_image_path))
-            blur_height = self.config.get_blur_size()
-            self.image_view.set_image(img, blur_height)
+        
+        # Load up to 5 images for animation
+        valid_images = [p for p in image_paths if p.suffix.lower() in self.supported_files][:5]
+        
+        if valid_images:
+            self.logger.log_status(f"Loaded {len(valid_images)} images for animation")
+            image_list = []
+            for img_path in valid_images:
+                img = cv2.imread(str(img_path))
+                if img is not None:
+                    image_list.append(img)
+            
+            if image_list:
+                blur_height = self.config.get_blur_size()
+                self.image_view.set_image(image_list, blur_height)
 
     @pyqtSlot()
     def change_save_folder(self):
@@ -336,6 +585,11 @@ class CropWindow(QWidget):
         self.height_input.setEnabled(editing)
         self.save_crop_button.setEnabled(editing)
         self.height_check_btn.setEnabled(editing)
+        
+        if editing:
+            self.image_view.stop_animation()
+        else:
+            self.image_view.restart_animation()
 
     def save_crop_values(self):
         try:

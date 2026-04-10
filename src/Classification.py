@@ -15,14 +15,46 @@ from PyQt5 import QtWidgets, QtCore
 from PyQt5.QtWidgets import QLabel, QLineEdit, QPushButton
 from PyQt5.QtCore import QThread, pyqtSignal, QObject
 
-import torch
+# torch is imported lazily in Classify.__init__() to prevent loading during app startup
 from PIL import Image
 
-from utils import ensure_directory_exists, cleanup_process
+from utils import ensure_directory_exists, cleanup_process, resolve_path
 
+
+
+DISPLAY_MAPPING = {
+    "AD_H1": "Assam Type (1-Story)",
+    "AD_H2": "Assam Type (2-Story)",
+    "MR_H1 flat roof": "Masonry (1-Story, Flat)",
+    "MR_H1 gable roof": "Masonry (1-Story, Gable)",
+    "MR_H2 flat roof": "Masonry (2-Story, Flat)",
+    "MR_H2 gable roof": "Masonry (2-Story, Gable)",
+    "MR_H3": "Masonry (3-Story)",
+    "Metal_H1": "Metal Structure",
+    "Non_Building": "Not a Building",
+    "RCC_H1 flat roof": "Reinf. Conc. (1-Story, Flat)",
+    "RCC_H1 gable roof": "Reinf. Conc. (1-Story, Gable)",
+    "RCC_H2 flat roof": "Reinf. Conc. (2-Story, Flat)",
+    "RCC_H2 gable roof": "Reinf. Conc. (2-Story, Gable)",
+    "RCC_H3 flat roof": "Reinf. Conc. (3-Story, Flat)",
+    "RCC_H3 gable roof": "Reinf. Conc. (3-Story, Gable)",
+    "RCC_H4 flat roof": "Reinf. Conc. (4-Story, Flat)",
+    "RCC_H4 gable roof": "Reinf. Conc. (4-Story, Gable)",
+    "RCC_H5": "Reinf. Conc. (5-Story)",
+    "RCC_H6": "Reinf. Conc. (6-Story)",
+    "RCC_OS_H1": "RCC Open Storey (1-Story)",
+    "RCC_OS_H2": "RCC Open Storey (2-Story)",
+    "RCC_OS_H3": "RCC Open Storey (3-Story)",
+    "RCC_OS_H4": "RCC Open Storey (4-Story)",
+    "Timber": "Timber Structure"
+}
 
 class Classify:
     def __init__(self, config: Config, logger: Logger, model_dir, num_classes=24, device=None):
+        # Lazy import torch - only loads when Classification tab is opened
+        import torch
+        self.torch = torch  # Store reference for use in methods
+        
         self.config = config
         self.logger = logger
         params = self.config.get_classification_data()
@@ -43,32 +75,53 @@ class Classify:
         self.image_extensions = self.config.get_img_ext()
         self.image_extensions = tuple(self.image_extensions.split(','))
 
-        self.device = device if device else torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.device = device if device else self.torch.device("cuda" if self.torch.cuda.is_available() else "cpu")
         self.logger.log_status(f"Using device: {self.device}")
 
     def instantiate_model(self):
         model_path = self.model_dir
-        # BEiT model initialization moved into QThread
         from transformers import BeitForImageClassification, BeitImageProcessor
-        model = BeitForImageClassification.from_pretrained(
-            "microsoft/beit-base-patch16-224-pt22k-ft22k",
-            num_labels=len(self.class_names),
-            ignore_mismatched_sizes=True,
-            local_files_only=True
-        )
+
+        # Load BEiT base architecture — try online first (downloads & caches),
+        # fall back to local cache for offline/frozen mode
         try:
-            checkpoint = torch.load(model_path, map_location=self.device, weights_only=True)
+            self.logger.log_status("Loading BEiT model architecture (may download on first run)...")
+            model = BeitForImageClassification.from_pretrained(
+                "microsoft/beit-base-patch16-224-pt22k-ft22k",
+                num_labels=len(self.class_names),
+                ignore_mismatched_sizes=True,
+                local_files_only=False  # Allow download if not cached
+            )
+        except Exception as e_online:
+            self.logger.log_status(f"Online download failed ({e_online}), trying local cache...")
+            model = BeitForImageClassification.from_pretrained(
+                "microsoft/beit-base-patch16-224-pt22k-ft22k",
+                num_labels=len(self.class_names),
+                ignore_mismatched_sizes=True,
+                local_files_only=True
+            )
+
+        # Load custom trained weights from .pth file
+        try:
+            checkpoint = self.torch.load(model_path, map_location=self.device, weights_only=False)
             state = checkpoint.get('model_state_dict', checkpoint)
-            model.load_state_dict(state)
-            self.logger.log_status("Model successfully loaded for classification")
+            model.load_state_dict(state, strict=False)
+            self.logger.log_status("Custom classification weights loaded successfully")
         except Exception as e:
-            self.logger.log_exception(f"Error loading model: {e}")
+            self.logger.log_exception(f"Error loading model weights from {model_path}: {e}")
+            raise
         model.to(self.device).eval()
 
-        processor = BeitImageProcessor.from_pretrained(
-            "microsoft/beit-base-patch16-224-pt22k-ft22k", 
-            revision="ae5a6db7d11451821f40ed294ceae691e68203e2"
-        )
+        # Load image processor — same online-first strategy
+        try:
+            processor = BeitImageProcessor.from_pretrained(
+                "microsoft/beit-base-patch16-224-pt22k-ft22k",
+                revision="ae5a6db7d11451821f40ed294ceae691e68203e2"
+            )
+        except Exception:
+            processor = BeitImageProcessor.from_pretrained(
+                "microsoft/beit-base-patch16-224-pt22k-ft22k"
+            )
         return model, processor
 
     def make_folders(self):
@@ -96,10 +149,10 @@ class Classify:
             inputs = self.processor(images=image, return_tensors="pt")
             inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
-            with torch.no_grad():
+            with self.torch.no_grad():
                 outputs = self.model(**inputs)
-                probabilities = torch.nn.functional.softmax(outputs.logits, dim=1)
-                predicted_class = torch.argmax(probabilities, dim=1).item()
+                probabilities = self.torch.nn.functional.softmax(outputs.logits, dim=1)
+                predicted_class = self.torch.argmax(probabilities, dim=1).item()
                 confidence = probabilities[0][predicted_class].item()
 
             return predicted_class, confidence
@@ -164,8 +217,11 @@ class Classify:
                 self.save_image(image_path, filename, target_folder)
 
                 stats['processed'] += 1
-                if not uncertain:    
-                    labels[class_name][0].setText(f"{class_name}: {stats['class_counts'][class_name]}")
+                if not uncertain:
+                    # Update label text using display mapping
+                    display_name = DISPLAY_MAPPING.get(class_name.strip(), class_name.strip())
+                    labels[class_name.strip()][0].setText(f"{display_name}: {stats['class_counts'][class_name]}")
+                    
                 progress_callback(((stats['processed'] + stats['failed'])/ stats['total']) * 100)
 
                 self.logger.log_status("image_path.name: ", image_path.name)
@@ -249,6 +305,8 @@ class _ClassificationTimer(QtCore.QThread):
 
 
 class ClassificationWindow(QtWidgets.QWidget):
+    add_model_requested = QtCore.pyqtSignal()
+
     def __init__(self, config: Config, logger: Logger):
         super().__init__()
         self.logger = logger
@@ -266,7 +324,7 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.setToolTip("Use classification models to assign labels to images based on their visual content.")
         self.init_ui()
         self.process_button.setEnabled(False)
-        self.model_dir = os.path.join(self.model_path,self.available_models[0] + self.model_ext)
+        self.model_dir = resolve_path(os.path.join(self.model_path,self.available_models[0] + self.model_ext))
         self.logger.log_status(f"Loaded in {self.model_dir}")
 
         self.processor = Classify(config, logger, self.model_dir)
@@ -326,6 +384,11 @@ class ClassificationWindow(QtWidgets.QWidget):
 
         self.top_layout.addWidget(self.process_button)
         self.top_layout.addWidget(self.drop_down)
+        
+        self.add_model_btn = QtWidgets.QPushButton("Add Model")
+        self.add_model_btn.clicked.connect(self.add_model_requested.emit)
+        self.top_layout.addWidget(self.add_model_btn)
+        
         self.top_layout.addWidget(self.progress_bar)
         self.top_layout.addWidget(self.progress_label)
 
@@ -338,8 +401,10 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.labels = {}
         class_names = self.config.get_classification_data()["class_names"].split(',')
         for i, name in enumerate(class_names):
-            label = QtWidgets.QLabel(f"{name.strip()} : 0")
-            self.labels[name.strip()] = (label, 0)
+            clean_name = name.strip()
+            display_name = DISPLAY_MAPPING.get(clean_name, clean_name)
+            label = QtWidgets.QLabel(f"{display_name} : 0")
+            self.labels[clean_name] = (label, 0)
             row = i if i < 12 else i - 12
             col = 0 if i < 12 else 1
             grid_container.addWidget(label, row, col)

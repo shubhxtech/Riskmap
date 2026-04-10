@@ -14,6 +14,11 @@ from PyQt5.QtCore import QThread, pyqtSignal, QObject, pyqtSlot
 from config_ import Config
 from AppLogger import Logger
 from utils import cleanup_process, resolve_path
+from sklearn.decomposition import PCA
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Qt5Agg')
 
 class DuplicateClassifier:
     def __init__(self, config: Config, logger: Logger):
@@ -27,8 +32,16 @@ class DuplicateClassifier:
         self.class_color_map: Dict[str, str] = {}
 
     def load_model(self):
-        os.environ['TF_KERAS_CACHE_DIR'] = str(self.config.get_duplicates_model_folder()) 
-        self.logger.log_status(f"os.environ['TF_KERAS_CACHE_DIR'] is set to {self.config.get_duplicates_model_folder()}")
+        model_folder = self.config.get_duplicates_model_folder()
+        
+        # Explicit fallback if config returns None
+        if model_folder is None:
+            model_folder = resolve_path("models/duplicates")
+            self.logger.log_status("Config returned None for duplicates model folder. Using default: " + str(model_folder), "WARNING")
+        
+        # Ensure it's a string for os.environ
+        os.environ['TF_KERAS_CACHE_DIR'] = str(model_folder)
+        self.logger.log_status(f"os.environ['TF_KERAS_CACHE_DIR'] is set to {model_folder}")
 
         from tensorflow.keras.applications import EfficientNetB7
         from tensorflow.keras.applications.efficientnet import preprocess_input
@@ -88,7 +101,7 @@ class DuplicateClassifier:
             for (lat, lon), class_id in location_class_map.items():
                 f.write(f"{lat}:{lon}:{class_id}\n")
 
-    def process_folder(self, folder_path: Path, progress_callback) -> float:
+    def process_folder(self, folder_path: Path, progress_callback, viz_callback=None) -> float:
         start_time = time.time()
         specs = self.config.get_duplicates_data()
         image_extensions = specs["image_extensions"].split(',')
@@ -98,26 +111,68 @@ class DuplicateClassifier:
             return 0.0
 
         self.source_folder = folder_path
+        
+        # Accumulators
+        feature_list = []
+        file_names = []
+        
+        # Incremental Processing Loop
+        # We merge _extract_features logic here to allow real-time updates
+        total_images = len(images)
+        for idx, img_path in enumerate(images):
+             while self.is_paused:
+                 time.sleep(0.1)
+             if self.is_cancelled:
+                 break
+            
+             # 1. Extract Feature
+             try:
+                 arr = self._load_and_preprocess_image(img_path)
+                 feat = self.MODEL.predict(arr, verbose=0)[0]
+                 feature_list.append(feat)
+                 file_names.append(str(img_path))
+             except Exception as e:
+                 self.logger.log_exception(f"Error processing {img_path}: {e}")
+                 continue
 
-        features, file_names = self._extract_features(images)
-        self.logger.log_status(f"features shape:{features.shape}")
-        self.logger.log_status(f"dtype:{features.dtype}")
-        self.logger.log_status(f"any NaN?:{np.isnan(features).any()}")
-        self.logger.log_status(f"min/max/mean: {np.nanmin(features)},{np.nanmax(features)}, {np.nanmean(features)}")
-        norms = np.linalg.norm(features, axis=1)
-        self.logger.log_status(f"feature norms (first 10): {norms[:10]}")
-        # If you normalized:
-        from sklearn.preprocessing import normalize
-        fn = normalize(features, axis=1)
-        self.logger.log_status(f"normalized norms (first 10):{np.linalg.norm(fn, axis=1)[:10]}")
-        if len(features)<=0:
-            self.logger.log_exception(f"No features found when processing ")
-        labels = self._cluster_features(features)
+             # 2. Update Progress
+             # percent = int(((idx + 1) / total_images) * 50) # First 50% for extraction? 
+             # Let's keep existing progress logic later, but maybe emit indeterminate or partial here?
+             # For now, duplicate logic relies on 2 passes (copying is the second pass).
+             # We can just log status or minimal progress if needed.
+
+             # 3. Real-time Visualization (every 5 images or last image)
+             if viz_callback and (len(feature_list) >= 2) and ((idx % 5 == 0) or (idx == total_images - 1)):
+                 try:
+                     current_features = np.array(feature_list)
+                     # Run DBSCAN on what we have so far
+                     # Note: This might be slow for very large datasets, strictly O(N^2)
+                     temp_labels = self._cluster_features(current_features)
+                     
+                     # Count distribution
+                     unique_labels = set(temp_labels)
+                     stats = {}
+                     for k in unique_labels:
+                         count = np.sum(temp_labels == k)
+                         name = f"Cluster {k}" if k != -1 else "Unique"
+                         stats[name] = count
+                     
+                     viz_callback(stats, None)
+                 except Exception as e:
+                     self.logger.log_exception(f"Real-time viz error: {e}")
+
+        # Final Clustering (for file moving logic)
+        features = np.array(feature_list)
+        self.logger.log_status(f"Final features shape:{features.shape}")
+        
+        if len(features) > 0:
+            labels = self._cluster_features(features)
+        else:
+            labels = []
 
         clusters: Dict[int, List[str]] = {}
         clusters_unique: Dict[int, List[str]] = {}
         for label, file_name in zip(labels, file_names):
-            self.logger.log_status(f"Label for file {file_name} : {label} (Duplicates Checker)")
             if label != -1:
                 clusters.setdefault(label, []).append(file_name)
             else:
@@ -125,16 +180,11 @@ class DuplicateClassifier:
 
         base_path = self.config.get_duplicates_destination_folder()
         os.makedirs(base_path, exist_ok=True)
-        self.logger.log_status(f"clusters (clusters): {clusters}")
-        self.logger.log_status(f"uniques (clusters_unique): {clusters_unique}")
-
-
+        
+        # ... (Rest of processing) ...
+        # Copied logic for file moving to ensure it persists
         all_cluster_files = set(clusters)
         all_unique_files = set(clusters_unique)
-        both = sorted(list(all_cluster_files & all_unique_files))
-        only_clusters = sorted(list(all_cluster_files - all_unique_files))
-        only_uniques = sorted(list(all_unique_files - all_cluster_files))
-        self.logger.log_status(f"both:{both}, only_clusters: {only_clusters}, only_uniques: {only_uniques}") 
         
         total = len(clusters)
         for count, (cluster_id, files) in enumerate(clusters.items(), start=1):
@@ -172,16 +222,32 @@ class DuplicateClassifier:
         self._save_classified_locations(folder_path, clusters)
         return time.time() - start_time
 
-    def process_multiple_folders(self, folder_paths: List[Path], progress_callback) -> float:
+    def process_multiple_folders(self, folder_paths: List[Path], progress_callback, viz_callback=None) -> float:
         time_taken_all = 0.0
         try:
             for folder_path in folder_paths:
-                time_taken = self.process_folder(folder_path, progress_callback)
+                time_taken = self.process_folder(folder_path, progress_callback, viz_callback)
                 self.logger.log_status(f"Folder {folder_path.name} was processed for {time_taken}")
                 time_taken_all += time_taken
         except Exception as e:
             self.logger.log_exception(f'An error occured while processing duplicates: {e}')
         return time_taken_all
+
+
+class MplCanvas(FigureCanvas):
+    def __init__(self, parent=None, width=5, height=4, dpi=100):
+        # Use a cleaner style (e.g., fast/default) and customize
+        # plt.style.use('seaborn-v0_8-whitegrid') # Optional if available, else default
+        fig = plt.figure(figsize=(width, height), dpi=dpi)
+        fig.patch.set_facecolor('#f0f0f0') # Match light app background roughly
+        self.axes = fig.add_subplot(111)
+        # self.axes.set_facecolor('#ffffff')
+        super(MplCanvas, self).__init__(fig)
+        self.setParent(parent)
+        FigureCanvas.setSizePolicy(self,
+                                   branch_policy := 1 | 2, # QSizePolicy.Expanding
+                                   branch_policy)
+        FigureCanvas.updateGeometry(self)
 
 
 class DuplicateModelLoaderThread(QThread):
@@ -205,7 +271,10 @@ class DuplicateModelLoaderThread(QThread):
 class DuplicatesWorker(QObject):
     progress_updated = pyqtSignal(int)
     processing_complete = pyqtSignal(float)
+    progress_updated = pyqtSignal(int)
+    processing_complete = pyqtSignal(float)
     error_occurred  = pyqtSignal(str)
+    viz_update = pyqtSignal(object, object) # points, labels
 
     def __init__(self, config: Config, logger: Logger, remove_dir: bool):
         super().__init__()
@@ -221,7 +290,8 @@ class DuplicatesWorker(QObject):
             self.processor.load_model()
             elapsed = self.processor.process_multiple_folders(
                 [self.config.get_duplicates_source_folder()],
-                self.progress_updated.emit
+                self.progress_updated.emit,
+                self.viz_update.emit
             )
 
             if self.remove_dir:
@@ -275,11 +345,17 @@ class DuplicatesWindow(QWidget):
         self.destination_folder_btn = QPushButton("Select Output Folder")
         self.destination_folder_label = QLabel(f"{self.destination_folder}")
         self.destination_folder_btn.clicked.connect(self.choose_destination_folder)
+        self.destination_folder_btn.clicked.connect(self.choose_destination_folder)
         layout.addWidget(self.destination_folder_btn)
         layout.addWidget(self.destination_folder_label)
 
+        # Plot Widget
+        self.plot_canvas = MplCanvas(self, width=5, height=4, dpi=100)
+        layout.addWidget(self.plot_canvas)
+
         self.files_processed_text = QTextEdit()
         self.files_processed_text.setReadOnly(True)
+        self.files_processed_text.setMaximumHeight(100) # Limit height to give more room to plot
         layout.addWidget(self.files_processed_text)
 
         self.timer_label = QLabel("Elapsed Time: 0.00 sec")
@@ -360,7 +436,10 @@ class DuplicatesWindow(QWidget):
         self.worker_thread.started.connect(self.worker.run)
         self.worker.progress_updated.connect(self.progress_bar.setValue)
         self.worker.processing_complete.connect(self.processing_done)
+        self.worker.progress_updated.connect(self.progress_bar.setValue)
+        self.worker.processing_complete.connect(self.processing_done)
         self.worker.error_occurred.connect(self.log_error)
+        self.worker.viz_update.connect(self.update_plot)
 
         self.worker_thread.start()
         self.process_button.setEnabled(False)
@@ -385,6 +464,50 @@ class DuplicatesWindow(QWidget):
     @pyqtSlot(str)
     def log_error(self, msg):
         self.files_processed_text.append(f"Error: {msg}")
+
+    @pyqtSlot(object, object)
+    def update_plot(self, stats, _ignored):
+        self.plot_canvas.axes.clear()
+        
+        if not stats or not isinstance(stats, dict):
+            return
+
+        # Prepare data for Bar Chart
+        categories = list(stats.keys())
+        counts = list(stats.values())
+        
+        # Sort by count descending for better readability
+        if len(categories) > 0:
+             combined = sorted(zip(counts, categories), reverse=True)
+             counts = [x[0] for x in combined]
+             categories = [x[1] for x in combined]
+
+        # Use a nice color palette
+        colors = plt.cm.viridis(np.linspace(0.3, 0.8, len(categories)))
+
+        bars = self.plot_canvas.axes.bar(categories, counts, color=colors, edgecolor='black', alpha=0.8)
+        
+        # Add grid
+        self.plot_canvas.axes.grid(True, axis='y', linestyle='--', alpha=0.6)
+        
+        # Remove top and right spines
+        self.plot_canvas.axes.spines['top'].set_visible(False)
+        self.plot_canvas.axes.spines['right'].set_visible(False)
+
+        # Add counts on top
+        for bar in bars:
+            height = bar.get_height()
+            self.plot_canvas.axes.text(bar.get_x() + bar.get_width()/2., height,
+                    f'{int(height)}',
+                    ha='center', va='bottom', color='black', fontsize=9, fontweight='bold')
+
+        self.plot_canvas.axes.set_title(f"Cluster Distribution ({sum(counts)} images processed)", fontsize=10, fontweight='bold', color='#333333')
+        self.plot_canvas.axes.set_ylabel("Number of Images", color='#333333')
+        # self.plot_canvas.axes.set_xlabel("Clusters", color='#333333')
+        self.plot_canvas.axes.tick_params(axis='x', rotation=45, colors='#333333') 
+        self.plot_canvas.axes.tick_params(axis='y', colors='#333333')
+
+        self.plot_canvas.draw()
 
     def pause_process(self):
         if self.worker:

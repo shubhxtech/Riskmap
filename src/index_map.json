@@ -1,1 +1,20 @@
-{"aizawl": {"north": 23.76, "east": 92.8, "south": 23.65, "west": 92.65}, "india": {"north": 37.1, "east": 97.5, "south": 6.5, "west": 68.0}}
+{
+  "aizawl": {
+    "north": 23.76,
+    "east": 92.8,
+    "south": 23.65,
+    "west": 92.65
+  },
+  "india": {
+    "north": 37.1,
+    "east": 97.5,
+    "south": 6.5,
+    "west": 68.0
+  },
+  "achalpur": {
+    "south": 21.062081,
+    "north": 21.4191461,
+    "west": 77.2950802,
+    "east": 77.6021433
+  }
+}

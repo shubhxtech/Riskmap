@@ -167,7 +167,7 @@ begin
 
     // Queue downloads
     idpClearFiles;
-    idpAddFile('{#CodeExeURL}',   ExpandConstant('{tmp}\RiskMap.exe'));
+    idpAddFile('{#ExeURL}',   ExpandConstant('{tmp}\RiskMap.exe'));
     idpAddFile('{#ModelsZipURL}', ExpandConstant('{tmp}\models.zip'));
 
     idpDownloadAfter(wpInstalling);

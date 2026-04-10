@@ -74,21 +74,27 @@ def safe_get(url, params, logger=None):
         resp = requests.get(url, params=params, timeout=10)
         if 200 <= resp.status_code < 300:
             if logger:
-                logger.log_status(f"✅ Success {resp.status_code} for {resp.url}")
+                logger.log_status(f"[SUCCESS] {resp.status_code} for {resp.url}")
             return resp
+        elif resp.status_code == 403:
+            msg = f"[ERROR] 403 Forbidden. Please ENABLE the 'Street View Static API' in your Google Cloud Console."
+            if logger:
+                logger.log_status(msg)
+            # Raise a custom error or let raise_for_status handle it, but the log checks are done.
+            resp.raise_for_status()
         elif 400 <= resp.status_code < 500:
             # Don’t retry
             if logger:
-                logger.log_status(f"❌ Client error {resp.status_code} for {resp.url}")
+                logger.log_status(f"[ERROR] Client error {resp.status_code} for {resp.url}")
             resp.raise_for_status()
         elif 500 <= resp.status_code < 600:
             # This will trigger retry
             if logger:
-                logger.log_status(f"⚠️ Server error {resp.status_code} for {resp.url}, retrying...")
+                logger.log_status(f"[WARNING] Server error {resp.status_code} for {resp.url}, retrying...")
             resp.raise_for_status()
     except requests.exceptions.RequestException as e:
         if logger:
-            logger.log_status(f"❌ Request failed for {url}: {e}")
+            logger.log_status(f"[ERROR] Request failed: {e}")
         raise
 
 def orient_faces(faces: dict[str,Image.Image]) -> dict[str,Image.Image]:
@@ -107,8 +113,11 @@ def cube_to_equirectangular(faces: dict, FACE_SIZE = int(config.get_download_dat
     Reproject 6 cube faces (dict with keys front, right, back, left, up, down)
     into one equirectangular image of size (4*FACE_SIZE, 2*FACE_SIZE).
     """
-    W = 4 * FACE_SIZE
-    H = 2 * FACE_SIZE
+    # Get actual face size from the first image (they should all be the same)
+    actual_face_size = faces['front'].size[0]  # Use actual image width
+    
+    W = 4 * actual_face_size
+    H = 2 * actual_face_size
     # Prepare output pixel grid
     ys, xs = np.indices((H, W), dtype=np.float32)
     lon = (xs / W) * 2 * math.pi - math.pi
@@ -125,13 +134,15 @@ def cube_to_equirectangular(faces: dict, FACE_SIZE = int(config.get_download_dat
     out = np.zeros((H, W, 3), dtype=np.uint8)
 
     def sample(face_img, uc, vc):
-        # uc, vc are floats in [-1,1] for face coords → map to [0, FACE_SIZE)
-        u = ((uc + 1) / 2) * (FACE_SIZE - 1)
-        v = ((vc + 1) / 2) * (FACE_SIZE - 1)
-        u = np.clip(np.round(u).astype(int), 0, FACE_SIZE-1)
-        v = np.clip(np.round(v).astype(int), 0, FACE_SIZE-1)
-        arr = np.array(face_img)
-        return arr[v, u]
+        # uc, vc are floats in [-1,1] for face coords → map to [0, actual_face_size)
+        face_arr = np.array(face_img)
+        face_h, face_w = face_arr.shape[:2]
+        
+        u = ((uc + 1) / 2) * (face_w - 1)
+        v = ((vc + 1) / 2) * (face_h - 1)
+        u = np.clip(np.round(u).astype(int), 0, face_w - 1)
+        v = np.clip(np.round(v).astype(int), 0, face_h - 1)
+        return face_arr[v, u]
 
     faces = orient_faces(faces=faces)
 
@@ -173,12 +184,15 @@ def cube_to_equirectangular(faces: dict, FACE_SIZE = int(config.get_download_dat
 
     return Image.fromarray(out)
 
-def download_panorama(pano_id: str, save_dir: str, coords: tuple[float,float], face):
+def download_panorama(pano_id: str, save_dir: str, coords: tuple[float,float], face=None):
     region = config.get_general_data()['region']
     logger.log_status("Started Panaroma Download")
     try:
         faces = fetch_cube_faces(pano_id, logger=logger)
-        eq = cube_to_equirectangular(faces, face)
+        if face is None:
+             eq = cube_to_equirectangular(faces)
+        else:
+             eq = cube_to_equirectangular(faces, face)
         lat, lng = coords
         os.makedirs(save_dir, exist_ok=True)
         filename = f"{region}_{pano_id}_{lat}_{lng}_360.jpg"

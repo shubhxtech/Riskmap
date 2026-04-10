@@ -1,0 +1,44 @@
+# RiskMap - macOS (Apple Silicon) Requirements
+# Use with: pip install -r requirements_mac.txt
+# Python 3.10 required
+
+# --- GUI Framework ---
+PyQt5>=5.15.9
+PyQtWebEngine>=5.15.6
+qtawesome
+
+# --- Core Libraries ---
+numpy>=1.24.3
+opencv-python
+pillow
+matplotlib
+
+# --- Machine Learning ---
+tensorflow>=2.15
+torch
+torchvision
+transformers
+scikit-learn
+
+# --- Geospatial ---
+cartopy
+folium
+branca
+
+# --- Utilities ---
+pytz
+requests
+python-dotenv
+tqdm
+tenacity
+
+# --- ONNX (optional, not used in source) ---
+onnx
+
+# --- Documentation ---
+mkdocs
+mkdocs-material
+pymdown-extensions
+
+# --- Build (for future Windows exe builds) ---
+pyinstaller
