@@ -10,10 +10,21 @@ def resolve_path(rel_path: str) -> str:
     if Path(rel_path).is_absolute():
         return rel_path
 
-    # Handle PyInstaller _MEIPASS
-    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+    # Handle PyInstaller
+    if getattr(sys, 'frozen', False):
+        # In frozen app, we are running from _internal (usually), but sys.executable is in root
+        # If path starts with '..', it means we want to go up from where code THINKS it is.
+        # But in frozen mode, best base is sys.executable directory (app root).
         base_path = os.path.dirname(sys.executable)
+        
+        # If the path starts with '..', strip it because we are already at root with sys.executable
+        # This handles the case where config says '../assets' (relative to src) 
+        # but in frozen mode we want just 'assets' (relative to exe)
+        if rel_path.startswith("..") or rel_path.startswith("../") or rel_path.startswith("..\\"):
+             rel_path = rel_path.replace("..\\", "").replace("../", "").replace("..", "", 1)
+             
     else:
+        # In script mode, we are in src/, so .. goes up to project root
         base_path = os.path.dirname(os.path.abspath(__file__))
 
     return os.path.abspath(os.path.join(base_path, rel_path))

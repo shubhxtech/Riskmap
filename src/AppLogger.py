@@ -88,8 +88,11 @@ class Logger:
         Args:
             exception (Exception): The exception object.
         """
-        print(exception)
-        self.logger.error("An exception occurred", exc_info=exception)
+        import traceback
+        tb_str = traceback.format_exc()
+        print(f"Exception Occurred: {exception}")
+        print(tb_str)
+        self.logger.error(f"An exception occurred: {exception}\n{tb_str}")
 
 
 

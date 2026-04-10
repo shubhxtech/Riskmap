@@ -1,3 +1,13 @@
+Ver 2.1 (UI Modernization)
+------ Completed changes -----
+. Implemented a global Dark Theme (dark grey background, blue accents, light text) via `styles.py`.
+. Updated application font to "Segoe UI" for a modern look.
+. Modernized `OverlaySidebar` with better styling, distinct background, and a "Tools" header.
+. Added a "Close" button to the sidebar for better accessibility.
+. Fixed `QEasingCurve` import error preventing animations.
+. Refined layouts in `ApiWindow`, `BuildingDetectionWindow`, and `CropStreetWindow` with proper margins and spacing.
+. Updated color schemes for UI elements (e.g., city dropdown) to ensure visibility in dark mode.
+
 Ver 0.1
 ------ Completed changes -----
 
@@ -21,4 +31,4 @@ Ver 0.1
 Line 31 of Duplicates_Better.py -> os.environ['TF_KERAS_CACHE_DIR'] = resolve_path('..\models') ## Shift this hardcoded dependency to config file
 . Complete the documentation page
 
-. Aesthetic changes to the entire App
+

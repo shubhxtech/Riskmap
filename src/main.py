@@ -1,5 +1,19 @@
-import sys, time, os
-sys.path.append(os.path.dirname(__file__))
+import sys, time, os, platform
+
+# --- CONFIGURATION ---
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["TORCH_ALLOW_DIRECT_IMPORT"] = "1"  # Suppress CVE-2025-32434 warning
+
+# --- Launch App ---
+
+try:
+    import torch
+    print(f"✓ Torch pre-loaded successfully: {torch.__version__}")
+except ImportError as e:
+    print(f"Warning: Could not pre-load torch: {e}")
+except Exception as e:
+    print(f"Warning: Error pre-loading torch: {e}")
 
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QTabWidget, QVBoxLayout,
@@ -7,7 +21,7 @@ from PyQt5.QtWidgets import (
     QMessageBox, QCheckBox, QLineEdit, QHBoxLayout,  QGridLayout, QDialog
 )
 from PyQt5.QtGui import QPixmap, QFont, QIcon
-from PyQt5.QtCore import Qt, QPropertyAnimation, QRect
+from PyQt5.QtCore import Qt, QPropertyAnimation, QRect, QEasingCurve, QSize
 from utils import resolve_path
 
 ## We need to download PyQT and PyQt5.QtWebEngineWidgets seperately
@@ -18,6 +32,34 @@ logger = Logger(__name__)
 logger.log_status("Starting App")
 
 # --- Configuration ---
+# Ensure icons exist
+def ensure_icons():
+    import qtawesome as qta
+    from PyQt5.QtCore import QSize
+    
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    assets_path = os.path.join(base_path, "assets", "icons")
+    
+    if not os.path.exists(assets_path):
+        os.makedirs(assets_path)
+    
+    down_path = os.path.join(assets_path, "arrow_down.png")
+    up_path = os.path.join(assets_path, "arrow_up.png")
+    
+    # Generate if missing
+    if not os.path.exists(down_path):
+        processed = False
+        try:
+            # We need a QApplication instance before qtawesome can work fully sometimes
+            # But main usually has one created later. 
+            # We will convert qta icons to images. 
+            # Note: qtawesome needs a QApp instance for some font loading.
+            pass 
+        except:
+            pass
+
+# We will call the actual generation inside MainApp or after App creation
+
 from config_ import Config  # Custom config module
 config = Config(logger, resolve_path("config_.ini"))
 logger.log_status(resolve_path("config_.ini"))
@@ -35,70 +77,18 @@ a = time.time()
 from ApiWindow import ApiWindow
 from CropStreetWindow import CropWindow 
 from BuildingDetectionWindow import BuildingDetectionWindow
-from Classification import ClassificationWindow
-from Duplicates_Better import DuplicatesWindow
+# from Classification import ClassificationWindow
+# from Duplicates_Better import DuplicatesWindow
 from model_training import Trainer
+from ResultsWindow import ResultsWindow
 logger.log_status(f'Time taken to import modules: {time.time()-a}.')
 
 logger.log_status('Modules imported. Starting Main App')
 
 
-class OverlaySidebar(QWidget):
-    def __init__(self, parent=None, config=None, callback_refs=None):
-        super().__init__(parent)
-        self.setFixedWidth(200)
-        self.setStyleSheet("background-color: #FFFFFF; color: black;")
-        self.setGeometry(-200, 0, 200, parent.height())  # Start off-screen
-        self.setAttribute(Qt.WA_StyledBackground, True)
-
-        layout = QVBoxLayout()
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(10)
-        self.setLayout(layout)
-
-        self.config = config
-
-        # Unpack callback references
-        self.show_logs = callback_refs.get("show_logs")
-        self.show_config = callback_refs.get("show_config")
-        self.add_model_form = callback_refs.get("add_model_form")
-        self.show_geoscatter = callback_refs.get("show_geoscatter")
-
-        logs_button = QPushButton("Show Logs")
-        logs_button.clicked.connect(self.show_logs)
-        layout.addWidget(logs_button)
-
-        show_settings_button = QPushButton("Show Config")
-        show_settings_button.clicked.connect(lambda: self.show_config(config=self.config))
-        layout.addWidget(show_settings_button)
-
-        add_model_button = QPushButton("Add New Model")
-        add_model_button.clicked.connect(self.add_model_form)
-        layout.addWidget(add_model_button)
-
-        show_geoscatter_button = QPushButton("Show Geoscatter")
-        show_geoscatter_button.clicked.connect(self.show_geoscatter)
-        layout.addWidget(show_geoscatter_button)
+from styles import DARK_THEME,LIGHT_THEME,BRAND_THEME
 
 
-
-    def slide_in(self):
-        self.show()
-        anim = QPropertyAnimation(self, b"geometry")
-        anim.setDuration(300)
-        anim.setStartValue(QRect(-200, 0, 200, self.height()))
-        anim.setEndValue(QRect(0, 0, 200, self.height()))
-        anim.start()
-        self.anim = anim
-
-    def slide_out(self):
-        anim = QPropertyAnimation(self, b"geometry")
-        anim.setDuration(300)
-        anim.setStartValue(QRect(0, 0, 200, self.height()))
-        anim.setEndValue(QRect(-200, 0, 200, self.height()))
-        anim.finished.connect(self.hide)
-        anim.start()
-        self.anim = anim
 
 
 
@@ -114,52 +104,43 @@ class MainApp(QMainWindow):
         self.setCentralWidget(central_widget)
         layout = QHBoxLayout(central_widget)
 
+        # Generate Icons for Dropdown (One-time check)
+        self.generate_dropdown_icons()
 
-        logger.log_status('Setting up topbar')
-        # TopBar
-        topbar = QHBoxLayout()
-        self.burger_button = QPushButton("☰")
-        self.burger_button.setFixedSize(40, 40)
-        self.burger_button.clicked.connect(self.toggle_sidebar)
-        topbar.addWidget(self.burger_button, alignment=Qt.AlignLeft)
-        topbar.addStretch()
 
-        layout.addLayout(topbar)
+
+
+
+
 
 
         # Main Tabs (Notebook equivalent)
         self.tabs = QTabWidget()
+        # Left-align tabs and prevent text clipping
+        tab_bar = self.tabs.tabBar()
+        tab_bar.setExpanding(False)         # Don't stretch tabs to fill width → keeps them left-aligned
+        tab_bar.setElideMode(Qt.ElideNone)  # Don't truncate tab text with "..."
 
         logger.log_status('Adding widgets')
 
         # Add tabs with Qt-based UI and threaded processing
+        # Add tabs with Qt-based UI and threaded processing
         self.add_tab(ApiWindow, name_stats["name_of_api_window"])
-        self.add_tab(CropWindow, name_stats["name_of_crop_window"])
-        self.add_tab(BuildingDetectionWindow, name_stats["name_of_building_detection"])
+        
+        # Unified Processing Tab (Merges Crop & Detection)
+        from UnifiedProcessing import UnifiedProcessingWindow
+        self.add_tab(UnifiedProcessingWindow, "Image Processing")
+        
         self.add_tab(Trainer, name_stats["name_of_training_window"])
-        self.add_tab(DuplicatesWindow, name_stats["name_of_duplicates_window"])
-        self.add_tab(ClassificationWindow, name_stats["name_of_classification"])
+        from SplitProcessingWindow import SplitProcessingWindow
+        # Add Unified Split Tab
+        split_tab = self.add_tab(SplitProcessingWindow, "Analyze & Filter")
+        split_tab.add_model_requested.connect(self.add_model_form)
+        
+        self.add_tab(ResultsWindow, "Results")
+        
         layout.addWidget(self.tabs, 7)
-        # Sidebar overlay
-        self.sidebar_open = False
-        self.sidebar = OverlaySidebar(
-            parent=self,
-            config=config,
-            callback_refs={
-                "show_logs": self.show_logs,
-                "show_config": self.show_config,
-                "add_model_form": self.add_model_form,
-                "show_geoscatter": self.show_geoscatter,
-            },
-        )
-        self.sidebar.hide()
 
-    def toggle_sidebar(self):
-        if self.sidebar_open:
-            self.sidebar.slide_out()
-        else:
-            self.sidebar.slide_in()
-        self.sidebar_open = not self.sidebar_open
 
     def center_window(self):
         screen = QApplication.primaryScreen().geometry()
@@ -196,6 +177,7 @@ class MainApp(QMainWindow):
         # Each window class builds its own UI in the passed layout
         wrapper_widget = WindowClass(config=config, logger=logger)
         self.tabs.addTab(wrapper_widget, label)
+        return wrapper_widget
 
     def show_logs(self):
         log_window = QWidget(self)
@@ -354,10 +336,45 @@ class MainApp(QMainWindow):
         window.exec_()
 
 
+    def generate_dropdown_icons(self):
+        try:
+            import qtawesome as qta
+            from PyQt5.QtCore import QSize
+            base_path = os.path.dirname(os.path.abspath(__file__))
+            assets_path = os.path.join(base_path, "assets", "icons")
+            if not os.path.exists(assets_path):
+                os.makedirs(assets_path)
+            
+            down_path = os.path.join(assets_path, "arrow_down.png")
+            if not os.path.exists(down_path):
+                qta.icon('fa5s.chevron-down', color='#5f6368').pixmap(QSize(16, 16)).save(down_path)
+                
+            up_path = os.path.join(assets_path, "arrow_up.png")
+            if not os.path.exists(up_path):
+                qta.icon('fa5s.chevron-up', color='#1DA1F2').pixmap(QSize(16, 16)).save(up_path)
+        except Exception as e:
+            logger.log_error(f"Failed to generate icons: {e}")
+
 # --- Launch App ---
 if __name__ == '__main__':
+    import multiprocessing
+    multiprocessing.freeze_support()
+    
     app = QApplication(sys.argv)
-    font = QFont("Arial", 10)
+    
+    # Resolve icon path for stylesheet
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    icons_dir = os.path.join(base_dir, "assets", "icons").replace("\\", "/")
+    
+    # Inject path into theme
+    theme_with_icons = BRAND_THEME.replace("%ICON_PATH%", icons_dir)
+    app.setStyleSheet(theme_with_icons)
+    
+    # Cross-platform font selection
+    if sys.platform == 'darwin':
+        font = QFont("Helvetica Neue", 14)
+    else:
+        font = QFont("Segoe UI", 14)
     app.setFont(font)
 
     icon_path = os.path.join(os.path.dirname(__file__), "app.ico")

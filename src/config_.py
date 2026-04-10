@@ -57,10 +57,10 @@ class Config:
             self.parser["Paths"] = {
                 "current_folder": "data",
                 "log_file": "app_logs.json",
-                "file_path": "data\\Raw",
+                "file_path": "data/Raw",
                 "geoscatter_path": "classified_data.txt",
                 "map_index_path": "index_map.json",
-                "classification_save_folder_path": "data\\Classified",
+                "classification_save_folder_path": "data/Classified",
                 "metadata_database_path": "scan_data.db",
                 "secrets_path": "secrets.env"
             }
@@ -73,31 +73,30 @@ class Config:
             }
 
             self.parser["BUILDING_DETECTION"] = {
-                "model_path": "models\\faster_rcnn",
+                "model_path": "../assets/models/faster_rcnn",
                 "model_url": "https://tfhub.dev/google/faster_rcnn/openimages_v4/inception_resnet_v2/1?tf-hub-format=compressed, Dummy",
                 "target_classes": "House,Building,Skyscraper,Tower",
                 "model_data_path": "model_data.json",
-                "input_dir": "data\\Processed_files",
-                "output_dir": "data\\detected",
+                "input_dir": "data/Processed_files",
+                "output_dir": "data/detected",
                 "threshold": "0.3",
                 "expand_factor": "0.1",
                 "min_dim": "200"
             }
 
             self.parser["Duplicates"] = {
-                "source_folder": "data\\detected",
-                "destination_parent_folder": "data\\Duplicates",
-                "image_extensions": ".jpg,.jpeg,.png,.bmp,.tiff",
-                "batch_size": "200",
+                "source_folder": "data/detected",
+                "destination_parent_folder": "data/Duplicates",
                 "img_size": "600,600",
-                "base_path": "data\\duplicates",
-                "metadata_file_name": "metadata.json"
+                "base_path": "data/duplicates",
+                "metadata_file_name": "metadata.json",
+                "model_folder": "../assets/models/duplicate_checker"
             }
 
             self.parser["Classification"] = {
-                "parent_folder": "data\\duplicates",
-                "output_folder": "data\\classified",
-                "model_path": "models\\classifier",
+                "parent_folder": "data/duplicates",
+                "output_folder": "data/classified",
+                "model_path": "../assets/models/classifier",
                 "class_names": "AD_H1,AD_H2,MR_H1 flat roof,MR_H1 gable roof,MR_H2 flat roof,MR_H2 gable roof,MR_H3,Metal_H1,Non_Building,RCC_H1 flat roof,RCC_H1 gable roof,RCC_H2 flat roof,RCC_H2 gable roof,RCC_H3 flat roof,RCC_H3 gable roof,RCC_H4 flat roof,RCC_H4 gable roof,RCC_H5,RCC_H6,RCC_OS_H1,RCC_OS_H2,RCC_OS_H3,RCC_OS_H4,Timber",
                 "classif_folder_name": "classified",
                 "confidence_threshold": "0.5",
@@ -108,12 +107,12 @@ class Config:
             }
 
             self.parser["Processed"] = {
-                "input_folder": "data\\Raw",
-                "save_folder": "data\\Processed"
+                "input_folder": "data/Raw",
+                "save_folder": "data/Processed"
             }
 
             self.parser["Model_Training"] = {
-                "data_dir": "data\\Classified",
+                "data_dir": "data/Classified",
                 "epochs": "10",
                 "learning_rate": "0.001",
                 "base_model": "ResNet50",
@@ -438,7 +437,7 @@ class Config:
         """
         Gets the folder path of the processor input folder
         """
-        return Path(resolve_path(self.get(section="Processed", option="input_folder", fallback="data\\Raw")))
+        return Path(resolve_path(self.get(section="Processed", option="input_folder", fallback="data/Raw")))
 
     def get_model_file_path(self):
         """
@@ -478,7 +477,7 @@ class Config:
         """
         section = "Paths"
         option = "file_path"
-        return Path(resolve_path(self.get(section=section, option=option, fallback="data\\Raw")))
+        return Path(resolve_path(self.get(section=section, option=option, fallback="data/Raw")))
 
 # --- set ---
 
@@ -592,7 +591,7 @@ class Config:
         Get the model folder for duplicates module
         """
         section = "Duplicates"
-        return Path(resolve_path(self.get(section=section, option="model_folder")))
+        return Path(resolve_path(self.get(section=section, option="model_folder", fallback="models/duplicates")))
 
 if __name__ == "__main__":
     Config(Logger(__name__))
