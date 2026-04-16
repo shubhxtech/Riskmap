@@ -81,6 +81,7 @@ from BuildingDetectionWindow import BuildingDetectionWindow
 # from Duplicates_Better import DuplicatesWindow
 from model_training import Trainer
 from ResultsWindow import ResultsWindow
+from RapidScanWindow import RapidScanWindow
 logger.log_status(f'Time taken to import modules: {time.time()-a}.')
 
 logger.log_status('Modules imported. Starting Main App')
@@ -138,6 +139,9 @@ class MainApp(QMainWindow):
         split_tab.add_model_requested.connect(self.add_model_form)
         
         self.add_tab(ResultsWindow, "Results")
+
+        # ── RapidScan — real-time video detection + risk assessment ──────
+        self.add_tab(RapidScanWindow, "⚡ RapidScan")
         
         layout.addWidget(self.tabs, 7)
 
