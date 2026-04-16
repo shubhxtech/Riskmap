@@ -42,3 +42,5 @@ pymdown-extensions
 
 # --- Build (for future Windows exe builds) ---
 pyinstaller
+pandas
+scipy
