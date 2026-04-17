@@ -1,56 +1,93 @@
-# RiskMap Build and Installer Guide
+# Building RiskMap.exe for Windows
 
-## Quick Start
+## Prerequisites
 
-### 1. Build the Executable
-```bash
-cd C:\Users\ashas\Desktop\Risk\RiskMap
-python build_exe.py
+| Tool | Download |
+|------|----------|
+| Anaconda / Miniconda | https://www.anaconda.com/download |
+| Visual C++ Redistributable | https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist |
+| UPX (optional, smaller exe) | https://github.com/upx/upx/releases — add to PATH |
+
+---
+
+## Step 1 — Create & activate the conda environment
+
+```bat
+conda create -n riskmap python=3.10 -y
+conda activate riskmap
 ```
-This creates `dist\RiskMap.exe` (may take 5-10 minutes)
 
-### 2. Compile the Installer
-1. Open Inno Setup Compiler
-2. Open `installer\RiskMap-local.iss`
-3. Click **Build** > **Compile**
-4. Installer will be created in `installer\output\RiskMapInstaller_Local.exe`
+## Step 2 — Install dependencies
 
-### 3. Test the Installer
-- Run the installer
-- Install to default location
-- Launch RiskMap and verify all features work
+```bat
+pip install -r requirements_windows.txt
+```
 
-## Build Options
+**GPU note:** The default `requirements_windows.txt` installs CPU-only PyTorch.  
+For CUDA 11.8 GPU acceleration run instead:
+```bat
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+pip install -r requirements_windows.txt
+```
 
-### Local Offline Installer (Recommended)
-**File:** `installer\RiskMap-local.iss`
-- Packages everything locally
-- No internet required
-- Single file distribution
+## Step 3 — Build the executable
 
-### Online Installer
-**File:** `installer\RiskMap-release.iss`
-- Downloads exe and models from GitHub
-- Requires active GitHub release
-- Smaller installer size
+Run from the **repo root** (the folder containing this file):
+
+```bat
+conda activate riskmap
+python build_windows.py
+```
+
+This will:
+1. Clean any previous `build/` and `dist/` folders
+2. Run PyInstaller with `RiskMap.spec`
+3. Print the path to the finished `.exe`
+
+## Step 4 — Test
+
+```bat
+dist\RiskMap\RiskMap.exe
+```
+
+A console window will open alongside the app — this is intentional during testing.  
+Once confirmed working, open `RiskMap.spec`, change `console=True` → `console=False`, and rebuild.
+
+## Step 5 — Distribute
+
+Zip the entire `dist\RiskMap\` folder:
+
+```bat
+powershell Compress-Archive dist\RiskMap dist\RiskMap_v1.0_Windows.zip
+```
+
+Send the zip to end users. They just unzip and run `RiskMap.exe`.
+
+---
 
 ## Troubleshooting
 
-### PyInstaller Build Issues
-- **Missing modules**: Add to `hiddenimports` in `build_exe.py`
-- **Large exe size**: Check if models are bundled (should be ~35-50 MB without models)
-- **Import errors**: Verify all dependencies in `requirements.txt`
+| Problem | Fix |
+|---------|-----|
+| `ModuleNotFoundError: rapidscan` | Make sure `src/rapidscan/` folder is present and has `__init__.py` |
+| `QtWebEngineProcess not found` | Ensure `PyQtWebEngine` is installed in the conda env |
+| `tensorflow DLL load failed` | Install the Visual C++ Redistributable (link above) |
+| Black screen / app doesn't open | Run with `console=True` first and check the console output |
+| `UPX` errors during build | Remove UPX from PATH or set `upx=False` in `RiskMap.spec` |
+| Very large .exe (>1 GB) | Expected — TensorFlow + Torch are large frameworks |
 
-### Inno Setup Compilation Issues
-- **File not found**: Check paths in .iss file match your directory structure
-- **Missing tools**: Ensure 7za.exe is in `installer\tools\` (for release version)
+---
 
-### Installation Issues
-- **App won't launch**: Check Windows Defender / antivirus didn't block it
-- **Missing features**: Verify all config files are in install directory
-- **Models not loading**: Check models folder exists or re-download
+## File structure after build
 
-## File Size Reference
-- Executable only: ~35-50 MB
-- With models: ~500-800 MB
-- Final installer: Varies based on compression
+```
+dist/
+  RiskMap/
+    RiskMap.exe          ← launch this
+    assets/              ← icons, models, maps
+    config_.ini
+    *.dll                ← dependency libraries
+    PyQt5/               ← Qt runtime
+    tensorflow/          ← TF runtime
+    torch/               ← PyTorch runtime
+```
