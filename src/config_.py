@@ -1,6 +1,6 @@
 import configparser
 from pathlib import Path
-from AppLogger import Logger
+from app_logger import Logger
 from utils import current_w_folder, resolve_path
 import sys, os, json
 

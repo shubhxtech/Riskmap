@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from AppLogger import Logger
+from app_logger import Logger
 logger = Logger(__name__)
 from typing import Optional
 from config_ import Config

@@ -44,8 +44,8 @@ def get_downloads_folder():
         Path: Path to the Downloads folder.
     """
     # Configure logger for utility functions
-    import AppLogger
-    logger = AppLogger.Logger(__name__)
+    from app_logger import Logger as _Logger
+    logger = _Logger(__name__)
     try:
         downloads_path = Path.home() / "Downloads"
         print(downloads_path)
@@ -66,8 +66,8 @@ def validate_path(path): # I don't think this has a need but whatever
         bool: True if the path exists and is accessible, False otherwise.
     """
     # Configure logger for utility functions
-    import AppLogger
-    logger = AppLogger.Logger(__name__)
+    from app_logger import Logger as _Logger
+    logger = _Logger(__name__)
     path = Path(path)
     if path.exists():
         logger.log_status(f"Validated path exists: {path}")
@@ -87,8 +87,8 @@ def ensure_directory_exists(directory):
         Path: The validated or newly created directory path.
     """
     # Configure logger for utility functions
-    import AppLogger
-    logger = AppLogger.Logger(__name__)
+    from app_logger import Logger as _Logger
+    logger = _Logger(__name__)
     directory = Path(directory)
     if not directory.exists():
         try:
@@ -113,8 +113,8 @@ def run_cleanup(folder: Path) -> bool:
     Deletes the folder and all its subdirectories
     """
     # Configure logger for utility functions
-    import AppLogger
-    logger = AppLogger.Logger(__name__)
+    from app_logger import Logger as _Logger
+    logger = _Logger(__name__)
     try: 
         shutil.rmtree(folder)
         logger.log_status(f"Deleted folder {folder}")

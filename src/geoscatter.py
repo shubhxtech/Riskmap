@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
-from AppLogger import Logger
+from app_logger import Logger
 from config_ import Config
 import random
 from pathlib import Path
