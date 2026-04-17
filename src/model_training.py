@@ -17,7 +17,7 @@ from PyQt5 import QtGui, QtCore
 
 from pathlib import Path
 from config_ import Config
-from AppLogger import Logger
+from app_logger import Logger
 from utils import resolve_path
 
 

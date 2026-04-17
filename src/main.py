@@ -27,7 +27,7 @@ from utils import resolve_path
 ## We need to download PyQT and PyQt5.QtWebEngineWidgets seperately
 
 # --- Setup Logging ---
-from AppLogger import Logger
+from app_logger import Logger
 logger = Logger(__name__)
 logger.log_status("Starting App")
 
@@ -74,24 +74,16 @@ if not config.get_map_index_path().exists():
 
 # --- Import refactored Qt versions of feature windows ---
 a = time.time()
-from ApiWindow import ApiWindow
-from CropStreetWindow import CropWindow 
-from BuildingDetectionWindow import BuildingDetectionWindow
-# from Classification import ClassificationWindow
-# from Duplicates_Better import DuplicatesWindow
+from api_window import ApiWindow
+# from classification import ClassificationWindow (loaded by SplitProcessingWindow)
+# from duplicates import DuplicatesWindow  (loaded by SplitProcessingWindow)
 from model_training import Trainer
-from ResultsWindow import ResultsWindow
-from RapidScanWindow import RapidScanWindow
+from rapid_scan_window import RapidScanWindow
 logger.log_status(f'Time taken to import modules: {time.time()-a}.')
 
 logger.log_status('Modules imported. Starting Main App')
 
-
-from styles import DARK_THEME,LIGHT_THEME,BRAND_THEME
-
-
-
-
+from styles import DARK_THEME, LIGHT_THEME, BRAND_THEME
 
 class MainApp(QMainWindow):
     def __init__(self):
@@ -129,19 +121,17 @@ class MainApp(QMainWindow):
         self.add_tab(ApiWindow, name_stats["name_of_api_window"])
         
         # Unified Processing Tab (Merges Crop & Detection)
-        from UnifiedProcessing import UnifiedProcessingWindow
+        from unified_processing import UnifiedProcessingWindow
         self.add_tab(UnifiedProcessingWindow, "Image Processing")
         
         self.add_tab(Trainer, name_stats["name_of_training_window"])
-        from SplitProcessingWindow import SplitProcessingWindow
+        from split_processing_window import SplitProcessingWindow
         # Add Unified Split Tab
         split_tab = self.add_tab(SplitProcessingWindow, "Analyze & Filter")
         split_tab.add_model_requested.connect(self.add_model_form)
         
-        self.add_tab(ResultsWindow, "Results")
-
-        # ── RapidScan — real-time video detection + risk assessment ──────
-        self.add_tab(RapidScanWindow, "⚡ RapidScan")
+        # ── RapidScan (Now renamed to Results) ──────
+        self.add_tab(RapidScanWindow, "Results")
         
         layout.addWidget(self.tabs, 7)
 

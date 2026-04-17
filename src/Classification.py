@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 from config_ import Config
-from AppLogger import Logger
+from app_logger import Logger
 
 import os
 import time
