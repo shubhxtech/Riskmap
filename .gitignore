@@ -87,4 +87,6 @@ installer/output/
 dist_trash_*
 debug_*
 gpu_output.txt
-test_out.txt*.env
+test_out.txt
+*.env
+secrets.env
