@@ -13,7 +13,7 @@ class ObjectDetectionProcessor(QObject):
     log_message = pyqtSignal(str)
     image_saved = pyqtSignal(str)
     # New signal: emits (image_path, list_of_detections) for UI visualization
-    visualization_data_ready = pyqtSignal(str, list)
+    visualization_data_ready = pyqtSignal(str, object)
     finished = pyqtSignal()
 
     def __init__(self, config: Config, logger: Logger):
@@ -163,12 +163,12 @@ class ObjectDetectionProcessor(QObject):
                     # If this box has higher score, replace the old one
                     if score > det['score']:
                         final_detections.remove(det)
-                        final_detections.append({'class': class_name, 'box': box, 'score': score})
+                        final_detections.append({'class': class_name, 'box': box.tolist(), 'score': float(score)})
                     is_duplicate = True
                     break
 
             if not is_duplicate:
-                final_detections.append({'class': class_name, 'box': box, 'score': score})
+                final_detections.append({'class': class_name, 'box': box.tolist(), 'score': float(score)})
 
         return final_detections
 
