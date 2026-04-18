@@ -17,7 +17,7 @@ class _DetectionWorker(QtCore.QThread):
     progress_changed = QtCore.pyqtSignal(float)
     log_message = QtCore.pyqtSignal(str)
     image_saved = QtCore.pyqtSignal(str)
-    visualization_data_ready = QtCore.pyqtSignal(str, list)
+    visualization_data_ready = QtCore.pyqtSignal(str, object)
 
     def __init__(self, processor: ObjectDetectionProcessor, remove_after: bool):
         super().__init__()
@@ -621,12 +621,7 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
         # Instantiate processor with up‐to‐date config
         self.processor = ObjectDetectionProcessor(self.config, self.logger)
 
-        # Connect processor→UI signals
-        self.processor.progress_updated.connect(self.update_progress)
-        self.processor.log_message.connect(self.log_to_output)
-        self.processor.image_saved.connect(self.log_to_output)
-
-        # Disable “Detect buildings” while running
+        # Only connect via the worker, removing direct connections to prevent double logging.
         self.process_button.setEnabled(False)
 
         # Start timer thread
