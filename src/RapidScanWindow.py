@@ -256,6 +256,7 @@ class VideoProcessor(QThread):
         self._transform     = None
         try:
             import torch
+            import os
             from transformers import BeitForImageClassification
             from torchvision import transforms
 
@@ -267,12 +268,23 @@ class VideoProcessor(QThread):
                 device = torch.device("cpu")
             self._torch_device = device
 
-            model = BeitForImageClassification.from_pretrained(
-                "microsoft/beit-base-patch16-224-pt22k-ft22k",
-                num_labels=len(self.class_names),
-                ignore_mismatched_sizes=True,
-                local_files_only=False,
-            )
+            try:
+                model = BeitForImageClassification.from_pretrained(
+                    "microsoft/beit-base-patch16-224-pt22k-ft22k",
+                    num_labels=len(self.class_names),
+                    ignore_mismatched_sizes=True,
+                    local_files_only=True,
+                    use_safetensors=True,
+                )
+            except Exception:
+                model = BeitForImageClassification.from_pretrained(
+                    "microsoft/beit-base-patch16-224-pt22k-ft22k",
+                    num_labels=len(self.class_names),
+                    ignore_mismatched_sizes=True,
+                    local_files_only=False,
+                    use_safetensors=True,
+                )
+
             if self.checkpoint_path and os.path.exists(self.checkpoint_path):
                 ckpt = torch.load(
                     self.checkpoint_path, map_location=device, weights_only=False
@@ -423,8 +435,20 @@ class VideoProcessor(QThread):
                 if frame_count % det_interval == 0 and self.detector is not None:
                     rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     try:
+                        # CRITICAL MEMORY OPTIMIZATION: 
+                        # Faster-RCNN will OOM on 4GB GPUs if fed full 1080p frames.
+                        # We scale the detection tensor down to max 640px. 
+                        # (Bboxes are normalized [0-1] so they automatically map back to 1080p).
+                        ih, iw = rgb.shape[:2]
+                        max_dim = 640
+                        if max(ih, iw) > max_dim:
+                            scale = max_dim / max(ih, iw)
+                            rgb_tf = cv2.resize(rgb, (int(iw * scale), int(ih * scale)))
+                        else:
+                            rgb_tf = rgb
+
                         t = self._tf.convert_to_tensor(
-                            rgb, dtype=self._tf.float32
+                            rgb_tf, dtype=self._tf.float32
                         ) / 255.0
                         result  = self.detector(t[self._tf.newaxis, ...])
                         boxes   = np.array(result["detection_boxes"]).reshape(-1, 4)

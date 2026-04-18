@@ -92,12 +92,6 @@ class DetectionVisualizer(QtWidgets.QGraphicsView):
         image_path: str 
         detections: list of dicts {'box': [ymin, xmin, ymax, xmax], 'class': str/bytes, ...}
         """
-        current_time = time.time()
-        if current_time - self.last_update_time < self.min_update_interval:
-            return 
-        
-        self.last_update_time = current_time
-        
         self.scene.clear()
         self.placeholder = None 
         
