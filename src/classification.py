@@ -328,17 +328,18 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.logger.log_status(f"Loaded in {self.model_dir}")
 
         self.processor = Classify(config, logger, self.model_dir)
-        self.loader_thread = ModelLoaderThread(self.processor, self.model_dir)
-        self.loader_thread.model_ready.connect(self.on_model_loaded)
-        self.loader_thread.model_failed.connect(self.on_model_failed)
-        self.loader_thread.start()
+        self.loader_thread = None  # Created on-demand — don't load at startup
+        self._model_loaded = False
 
     def on_model_loaded(self, model, processor):
         # Store loaded model and processor
         self.processor.model = model
         self.processor.processor = processor
-        self.model_status_label.setText("Model import complete")
+        self._model_loaded = True
+        self.model_status_label.setText("Model loaded — ready to classify.")
         self.process_button.setEnabled(True)
+        if hasattr(self, 'load_model_btn'):
+            self.load_model_btn.setEnabled(False)  # Already loaded, no need to click again
 
     def on_model_failed(self, error):
         self.model_status_label.setText("Model loading failed")
@@ -388,6 +389,11 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.add_model_btn = QtWidgets.QPushButton("Add Model")
         self.add_model_btn.clicked.connect(self.add_model_requested.emit)
         self.top_layout.addWidget(self.add_model_btn)
+
+        self.load_model_btn = QtWidgets.QPushButton("↯ Load Model")
+        self.load_model_btn.setToolTip("Load the BEiT classifier into memory (required before classifying)")
+        self.load_model_btn.clicked.connect(self._trigger_model_load)
+        self.top_layout.addWidget(self.load_model_btn)
         
         self.top_layout.addWidget(self.progress_bar)
         self.top_layout.addWidget(self.progress_label)
@@ -413,7 +419,7 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.text_output = QtWidgets.QTextEdit()
         self.text_output.setReadOnly(True)
         layout.addWidget(self.text_output)
-        self.model_status_label = QLabel("Model is loading in...")
+        self.model_status_label = QLabel("Model not loaded — click '↯ Load Model' or 'Classify All Images' to begin.")
         layout.addWidget(self.model_status_label)
 
     def add_class_labels(self, model_name: str):
@@ -447,7 +453,27 @@ class ClassificationWindow(QtWidgets.QWidget):
             self.input_folder = Path(input_folder)
             self.config.set_classif_input_foldr(input_folder)
 
+    def _trigger_model_load(self):
+        """Start loading the BEiT model if not already loaded/loading."""
+        if self._model_loaded:
+            self.model_status_label.setText("Model already loaded.")
+            return
+        if self.loader_thread and self.loader_thread.isRunning():
+            self.model_status_label.setText("Model is loading… please wait.")
+            return
+        self.model_status_label.setText("Loading model… this may take a minute.")
+        self.load_model_btn.setEnabled(False)
+        self.loader_thread = ModelLoaderThread(self.processor, self.model_dir)
+        self.loader_thread.model_ready.connect(self.on_model_loaded)
+        self.loader_thread.model_failed.connect(self.on_model_failed)
+        self.loader_thread.start()
+
     def start_process(self):
+        # Auto-trigger model load if not yet done
+        if not self._model_loaded:
+            self._trigger_model_load()
+            self.model_status_label.setText("Model loading… please wait, then click Classify again.")
+            return
         self.process_button.setEnabled(False)
 
         self.timer_thread = _ClassificationTimer()
