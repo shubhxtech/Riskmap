@@ -15,14 +15,36 @@ os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
 
 try:
     import torch
-    print(f"✓ Torch pre-loaded successfully: {torch.__version__}")
-    # GPU status readout
+    print(f"\u2713 Torch pre-loaded successfully: {torch.__version__}")
+
+    # ── Monkey-patch for PyTorch cu118/legacy builds ─────────────────────────
+    # Recent transformers (>=4.44) calls torch._dynamo.disable() internally,
+    # which references skip_code. This symbol only exists in newer PyTorch
+    # CUDA builds (cu124+). Without this patch, BEiT fails to import.
+    try:
+        import torch._C._dynamo.eval_frame as _dynamo_ef
+        if not hasattr(_dynamo_ef, 'skip_code'):
+            _dynamo_ef.skip_code = lambda code, *, reason="": None  # no-op shim
+    except Exception:
+        pass  # Older torch without dynamo at all — transformers handles it
+
+    # ── GPU status readout ────────────────────────────────────────────────────
     if torch.cuda.is_available():
-        print(f"✓ GPU (CUDA): {torch.cuda.get_device_name(0)} — {torch.cuda.get_device_properties(0).total_memory // 1024**2} MB VRAM")
+        gpu_name = torch.cuda.get_device_name(0)
+        vram_mb  = torch.cuda.get_device_properties(0).total_memory // 1024**2
+        cc_major = torch.cuda.get_device_properties(0).major
+        cc_minor = torch.cuda.get_device_properties(0).minor
+        print(f"\u2713 GPU (CUDA): {gpu_name} \u2014 {vram_mb} MB VRAM (sm_{cc_major}{cc_minor})")
+        # Blackwell (sm_120+) requires PyTorch cu128 — warn the user clearly
+        if cc_major >= 12:
+            print(f"  \u26a0\ufe0f  RTX 5000-series (Blackwell/sm_{cc_major}{cc_minor}) detected.")
+            print(f"     PyTorch cu118 does NOT support this GPU. GPU will be used for TensorFlow only.")
+            print(f"     To enable PyTorch GPU support, run:")
+            print(f"       pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128")
     elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
-        print("✓ GPU (Apple MPS): available")
+        print("\u2713 GPU (Apple MPS): available")
     else:
-        print("  GPU: Not available — running on CPU (slower). See BUILD_INSTALLER.md for GPU setup.")
+        print("  GPU: Not available \u2014 running on CPU (slower). See BUILD_INSTALLER.md for GPU setup.")
 except ImportError as e:
     print(f"Warning: Could not pre-load torch: {e}")
 except Exception as e:
