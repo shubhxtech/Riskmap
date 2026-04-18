@@ -75,6 +75,15 @@ class VideoProcessor(QThread):
             import tensorflow_hub as hub
             self._tf = tf
             gpus   = tf.config.list_physical_devices("GPU")
+            
+            # CRITICAL: Prevent TF from eating all available VRAM, 
+            # otherwise PyTorch (BEiT classifier) gets 0 bytes and crashes.
+            for gpu in gpus:
+                try:
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                except RuntimeError:
+                    pass
+
             device = "/GPU:0" if gpus else "/CPU:0"
             with tf.device(device):
                 module = hub.load(
