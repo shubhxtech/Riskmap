@@ -90,7 +90,8 @@ class Classify:
                 "microsoft/beit-base-patch16-224-pt22k-ft22k",
                 num_labels=len(self.class_names),
                 ignore_mismatched_sizes=True,
-                local_files_only=False  # Allow download if not cached
+                local_files_only=False,  # Allow download if not cached
+                use_safetensors=True     # Bypass torch.load CVE-2025-32434 check
             )
         except Exception as e_online:
             self.logger.log_status(f"Online download failed ({e_online}), trying local cache...")
@@ -98,7 +99,8 @@ class Classify:
                 "microsoft/beit-base-patch16-224-pt22k-ft22k",
                 num_labels=len(self.class_names),
                 ignore_mismatched_sizes=True,
-                local_files_only=True
+                local_files_only=True,
+                use_safetensors=True     # Bypass torch.load CVE-2025-32434 check
             )
 
         # Load custom trained weights from .pth file
