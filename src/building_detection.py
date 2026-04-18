@@ -224,20 +224,27 @@ class ObjectDetectionProcessor(QObject):
                 self.logger.log_status(f"Model output keys: {list(results.keys())}") 
                 
                 raw_boxes = results['detection_boxes'].numpy()
+                if raw_boxes.ndim == 3:
+                    raw_boxes = raw_boxes[0]
+
                 raw_scores = results['detection_scores'].numpy().astype(np.float32)
+                if raw_scores.ndim == 2:
+                    raw_scores = raw_scores[0]
 
                 if 'detection_class_entities' in results:
                     raw_classes = results['detection_class_entities'].numpy()
+                    if raw_classes.ndim == 2:
+                        raw_classes = raw_classes[0]
                 elif 'detection_classes' in results:
                     # Fallback for models returning class indices (e.g. COCO)
-                    # We need a map. Minimal COCO map for common objects:
-                    # Note: Indices are floats in tensor, need cast to int.
                     coco_map = {
                         1: 'Person', 2: 'Bicycle', 3: 'Car', 4: 'Motorcycle', 6: 'Bus', 8: 'Truck',
                         10: 'Traffic light', 13: 'Stop sign', 
-                        # Note: COCO does not have 'Building' or 'House'
                     }
                     class_indices = results['detection_classes'].numpy().astype(int)
+                    if class_indices.ndim == 2:
+                        class_indices = class_indices[0]
+                    
                     # Convert to byte strings to match existing logic
                     raw_classes = []
                     for idx in class_indices:
