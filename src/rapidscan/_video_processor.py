@@ -106,6 +106,7 @@ class VideoProcessor(QThread):
         self._transform    = None
         try:
             import torch
+            import os
             from transformers import BeitForImageClassification
             from torchvision import transforms
 
@@ -131,7 +132,7 @@ class VideoProcessor(QThread):
             except Exception:
                 # Not in cache — try downloading with relaxed SSL (helps on
                 # corporate/restricted Windows networks with SSL inspection)
-                import ssl, os
+                import ssl
                 os.environ.setdefault("CURL_CA_BUNDLE", "")
                 os.environ.setdefault("REQUESTS_CA_BUNDLE", "")
                 model = BeitForImageClassification.from_pretrained(

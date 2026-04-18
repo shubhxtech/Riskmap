@@ -10,6 +10,8 @@ os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True") # P
 # Suppress verbose TensorFlow C++ logs (CUDA DLL not found, etc.).
 # 0=all, 1=no INFO, 2=no WARNING, 3=no ERROR. Default 3 hides CUDA DLL noise.
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
+# Disable cuDNN autotuning: prevents insane workspace OOMs on newer unsupported GPUs (RTX 4000/5000 series)
+os.environ.setdefault("TF_CUDNN_USE_AUTOTUNE", "0")
 
 # --- Launch App ---
 
