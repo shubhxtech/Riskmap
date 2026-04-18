@@ -76,13 +76,21 @@ class VideoProcessor(QThread):
             self._tf = tf
             gpus   = tf.config.list_physical_devices("GPU")
             
-            # CRITICAL: Prevent TF from eating all available VRAM, 
-            # otherwise PyTorch (BEiT classifier) gets 0 bytes and crashes.
+            # CRITICAL: Cap TF to max 2048MB so BEiT always has >= 2GB headroom.
+            # set_memory_growth alone is not enough — TF can still grow and crowd out PyTorch.
+            # A hard virtual-device limit is the only reliable guarantee on 4GB GPUs.
             for gpu in gpus:
                 try:
-                    tf.config.experimental.set_memory_growth(gpu, True)
-                except RuntimeError:
-                    pass
+                    tf.config.experimental.set_virtual_device_configuration(
+                        gpu,
+                        [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=2048)]
+                    )
+                except (RuntimeError, ValueError):
+                    # Already initialized — fall back to growth-only mode
+                    try:
+                        tf.config.experimental.set_memory_growth(gpu, True)
+                    except RuntimeError:
+                        pass
 
             device = "/GPU:0" if gpus else "/CPU:0"
             with tf.device(device):
