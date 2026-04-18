@@ -8,7 +8,6 @@ os.environ["TORCH_ALLOW_DIRECT_IMPORT"] = "1"  # Suppress CVE-2025-32434 warning
 # Suppress verbose TensorFlow C++ logs (CUDA DLL not found, etc.).
 # 0=all, 1=no INFO, 2=no WARNING, 3=no ERROR. Default 3 hides CUDA DLL noise.
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "3")
-os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")  # Let TF auto-select GPU
 
 # --- Launch App ---
 
