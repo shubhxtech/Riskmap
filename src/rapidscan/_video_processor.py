@@ -278,8 +278,20 @@ class VideoProcessor(QThread):
                         t_["ttl"] -= 1
 
                     try:
+                        # CRITICAL MEMORY OPTIMIZATION: 
+                        # Faster-RCNN will OOM on 4GB GPUs if fed full 1080p frames.
+                        # We scale the detection tensor down to max 640px. 
+                        # (Bboxes are normalized [0-1] so they automatically map back to 1080p).
+                        ih, iw = rgb.shape[:2]
+                        max_dim = 640
+                        if max(ih, iw) > max_dim:
+                            scale = max_dim / max(ih, iw)
+                            rgb_tf = cv2.resize(rgb, (int(iw * scale), int(ih * scale)))
+                        else:
+                            rgb_tf = rgb
+
                         t = self._tf.convert_to_tensor(
-                            rgb, dtype=self._tf.float32
+                            rgb_tf, dtype=self._tf.float32
                         ) / 255.0
                         result  = self.detector(t[self._tf.newaxis, ...])
                         boxes   = np.array(result["detection_boxes"]).reshape(-1, 4)

@@ -4,6 +4,8 @@ import sys, time, os, platform
 import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 os.environ["TORCH_ALLOW_DIRECT_IMPORT"] = "1"  # Suppress CVE-2025-32434 warning
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True") # Prevents fragmentation OOM on 4GB GPUs
+
 
 # Suppress verbose TensorFlow C++ logs (CUDA DLL not found, etc.).
 # 0=all, 1=no INFO, 2=no WARNING, 3=no ERROR. Default 3 hides CUDA DLL noise.
