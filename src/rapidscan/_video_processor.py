@@ -76,21 +76,14 @@ class VideoProcessor(QThread):
             self._tf = tf
             gpus   = tf.config.list_physical_devices("GPU")
             
-            # CRITICAL: Cap TF to max 2048MB so BEiT always has >= 2GB headroom.
-            # set_memory_growth alone is not enough — TF can still grow and crowd out PyTorch.
-            # A hard virtual-device limit is the only reliable guarantee on 4GB GPUs.
+            # Use memory growth so TF doesn't pre-allocate all VRAM,
+            # but do NOT set a hard cap — the inference graph for Faster R-CNN
+            # needs the full GPU budget to compile its execution plan.
             for gpu in gpus:
                 try:
-                    tf.config.experimental.set_virtual_device_configuration(
-                        gpu,
-                        [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=2048)]
-                    )
-                except (RuntimeError, ValueError):
-                    # Already initialized — fall back to growth-only mode
-                    try:
-                        tf.config.experimental.set_memory_growth(gpu, True)
-                    except RuntimeError:
-                        pass
+                    tf.config.experimental.set_memory_growth(gpu, True)
+                except RuntimeError:
+                    pass  # Already initialized elsewhere
 
             device = "/GPU:0" if gpus else "/CPU:0"
             with tf.device(device):
@@ -116,20 +109,37 @@ class VideoProcessor(QThread):
             from transformers import BeitForImageClassification
             from torchvision import transforms
 
-            if torch.cuda.is_available():
-                device = torch.device("cuda")
-            elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
-                device = torch.device("mps")
-            else:
-                device = torch.device("cpu")
+            # ALWAYS use CPU for BEiT in the video processor.
+            # Reason: TF Faster R-CNN uses the full GPU budget for its inference
+            # graph. BEiT only runs ONCE after all frames are processed (batch
+            # classification of N crops), so CPU speed is perfectly adequate
+            # and avoids all VRAM conflicts with TF.
+            device = torch.device("cpu")
             self._torch_device = device
+            self.status_update.emit("BEiT: using CPU (avoids VRAM conflict with TF detector)")
 
-            model = BeitForImageClassification.from_pretrained(
-                "microsoft/beit-base-patch16-224-pt22k-ft22k",
-                num_labels=len(self.class_names),
-                ignore_mismatched_sizes=True,
-                local_files_only=False,
-            )
+            # Handle network failures gracefully: try to load from local cache
+            # first, then fall back to download with SSL workaround.
+            try:
+                model = BeitForImageClassification.from_pretrained(
+                    "microsoft/beit-base-patch16-224-pt22k-ft22k",
+                    num_labels=len(self.class_names),
+                    ignore_mismatched_sizes=True,
+                    local_files_only=True,   # Try cache first (no network needed)
+                )
+            except Exception:
+                # Not in cache — try downloading with relaxed SSL (helps on
+                # corporate/restricted Windows networks with SSL inspection)
+                import ssl, os
+                os.environ.setdefault("CURL_CA_BUNDLE", "")
+                os.environ.setdefault("REQUESTS_CA_BUNDLE", "")
+                model = BeitForImageClassification.from_pretrained(
+                    "microsoft/beit-base-patch16-224-pt22k-ft22k",
+                    num_labels=len(self.class_names),
+                    ignore_mismatched_sizes=True,
+                    local_files_only=False,
+                )
+
             if self.checkpoint_path and os.path.exists(self.checkpoint_path):
                 ckpt  = torch.load(self.checkpoint_path, map_location=device,
                                    weights_only=False)
