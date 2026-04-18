@@ -126,6 +126,7 @@ class VideoProcessor(QThread):
                     num_labels=len(self.class_names),
                     ignore_mismatched_sizes=True,
                     local_files_only=True,   # Try cache first (no network needed)
+                    use_safetensors=True,    # Bypass torch.load CVE-2025-32434 check
                 )
             except Exception:
                 # Not in cache — try downloading with relaxed SSL (helps on
@@ -138,6 +139,7 @@ class VideoProcessor(QThread):
                     num_labels=len(self.class_names),
                     ignore_mismatched_sizes=True,
                     local_files_only=False,
+                    use_safetensors=True,    # Bypass torch.load CVE-2025-32434 check
                 )
 
             if self.checkpoint_path and os.path.exists(self.checkpoint_path):
