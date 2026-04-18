@@ -198,6 +198,7 @@ class VideoProcessor(QThread):
             )
 
     def run(self):
+        import sys as _sys
         try:
             self._load_detector()
             self._load_classifier()
@@ -206,8 +207,10 @@ class VideoProcessor(QThread):
             if not cap.isOpened():
                 self.status_update.emit(
                     f"ERROR: Cannot open video: {self.video_path}\n"
-                    "Supported: MP4, AVI, MOV, MKV. "
-                    "Ensure OpenCV is built with FFMPEG support."
+                    "Possible causes:\n"
+                    "  • File is incomplete or corrupted ('moov atom not found')\n"
+                    "  • Codec not supported by this OpenCV build\n"
+                    "  • Try re-encoding with: ffmpeg -i input.mp4 -c copy output.mp4"
                 )
                 self.finished.emit()
                 return
@@ -224,11 +227,17 @@ class VideoProcessor(QThread):
             )
 
             # Optional annotated output
+            # On Windows: avc1 requires openh264-1.8.0-win64.dll (rarely present).
+            # Prefer mp4v/XVID on Windows; allow avc1 on macOS/Linux.
             out, out_path = None, None
             if self.output_folder:
                 try:
                     out_path = os.path.join(self.output_folder, "annotated_video.mp4")
-                    for codec in ("avc1", "mp4v", "MJPG"):
+                    if _sys.platform == "win32":
+                        codec_order = ("mp4v", "XVID", "MJPG")
+                    else:
+                        codec_order = ("avc1", "mp4v", "MJPG")
+                    for codec in codec_order:
                         fourcc = cv2.VideoWriter_fourcc(*codec)
                         out    = cv2.VideoWriter(out_path, fourcc, fps, (w, h))
                         if out.isOpened():
