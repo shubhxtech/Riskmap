@@ -20,6 +20,7 @@ from PyQt5.QtWidgets import (
     QLabel, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView,
     QComboBox, QGroupBox, QDoubleSpinBox, QSpinBox,
     QGridLayout, QProgressBar, QTextEdit, QSizePolicy,
+    QLineEdit, QDialog, QDialogButtonBox, QFormLayout
 )
 
 from ._constants import (
@@ -36,9 +37,10 @@ except ImportError:
 try:
     from risk_engine import (
         ScenarioParams, BuildingRecord, BuildingResult,
-        run_scenario, portfolio_summary,
+        run_scenario, run_actual_pga, portfolio_summary,
         CLASS_TO_ARCHETYPE, FRAGILITY_LIB, LOSS_RATIO,
         boore_atkinson_2008_pga, fragility_prob,
+        register_custom_typology,
     )
     _RISK_OK  = True
     _RISK_ERR = ""
@@ -66,18 +68,24 @@ class RiskCalcThread(QThread):
     progress = pyqtSignal(str)
     error    = pyqtSignal(str)
 
-    def __init__(self, buildings, params):
+    def __init__(self, buildings, params, actual_pga_df=None):
         super().__init__()
         self.buildings = buildings
         self.params    = params
+        self.actual_pga_df = actual_pga_df
 
     def run(self):
         if not _RISK_OK:
             self.error.emit(f"risk_engine not available: {_RISK_ERR}")
             return
         try:
-            self.progress.emit("Computing ground-motion field (BA08 GMPE)…")
-            results, df = run_scenario(self.buildings, self.params)
+            if self.actual_pga_df is not None:
+                self.progress.emit("Processing actual empirical PGA data…")
+                results, df = run_actual_pga(self.buildings, self.actual_pga_df)
+            else:
+                self.progress.emit("Computing ground-motion field (BA08 GMPE)…")
+                results, df = run_scenario(self.buildings, self.params)
+            
             self.progress.emit("Aggregating damage states…")
             summary = portfolio_summary(results)
             self.progress.emit("Done.")
@@ -98,8 +106,10 @@ class RiskAssessmentPanel(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.buildings   = []
+        self.csv_mode_active = False
         self.results     = []
         self.df          = None
+        self.actual_pga_df = None
         self.summary     = {}
         self.calc_thread = None
         self._build_ui()
@@ -125,11 +135,34 @@ class RiskAssessmentPanel(QWidget):
         self.exposure_lbl = QLabel("No buildings loaded")
         self.exposure_lbl.setWordWrap(True)
         self.exposure_lbl.setStyleSheet(f"color:{TXT_MID}; font-size:11px;")
+        
         self.btn_load_csv = QPushButton("📂  Load Exposure CSV")
         self.btn_load_csv.setCursor(Qt.PointingHandCursor)
         self.btn_load_csv.clicked.connect(self.load_exposure_csv)
+        
+        self.pga_lbl = QLabel("No actual PGA loaded (using scenario)")
+        self.pga_lbl.setWordWrap(True)
+        self.pga_lbl.setStyleSheet(f"color:{TXT_MID}; font-size:11px;")
+        
+        self.btn_load_pga = QPushButton("📂  Load PGA Actual CSV")
+        self.btn_load_pga.setCursor(Qt.PointingHandCursor)
+        self.btn_load_pga.clicked.connect(self.load_pga_csv)
+
+        self.btn_add_typology = QPushButton("➕  Add Building Typology")
+        self.btn_add_typology.setCursor(Qt.PointingHandCursor)
+        self.btn_add_typology.setStyleSheet(
+            f"background:{BG_CARD}; color:{ACCENT}; border:1px solid {ACCENT}; "
+            f"border-radius:6px; padding:6px; font-weight:bold;"
+        )
+        self.btn_add_typology.clicked.connect(self.show_typology_dialog)
+        
         eg.addWidget(self.exposure_lbl)
         eg.addWidget(self.btn_load_csv)
+        eg.addSpacing(10)
+        eg.addWidget(self.pga_lbl)
+        eg.addWidget(self.btn_load_pga)
+        eg.addSpacing(10)
+        eg.addWidget(self.btn_add_typology)
         ll.addWidget(exp_grp)
 
         # Earthquake scenario
@@ -228,11 +261,6 @@ class RiskAssessmentPanel(QWidget):
         self.log.setFixedHeight(120)
         ll.addWidget(self.log)
 
-        self.btn_export = QPushButton("💾  Export Results CSV")
-        self.btn_export.setEnabled(False)
-        self.btn_export.setCursor(Qt.PointingHandCursor)
-        self.btn_export.clicked.connect(self.export_csv)
-        ll.addWidget(self.btn_export)
         ll.addStretch()
 
         # RIGHT: results
@@ -278,20 +306,46 @@ class RiskAssessmentPanel(QWidget):
         chart_row.addWidget(self.frag_canvas, 2)
         rl.addLayout(chart_row)
 
-        # Results table
+        # Results table header
+        tbl_hdr = QWidget()
+        th_l = QHBoxLayout(tbl_hdr)
+        th_l.setContentsMargins(0, 0, 0, 0)
+
         tbl_lbl = QLabel("BUILDING RESULTS")
         tbl_lbl.setStyleSheet(
             f"color:{ACCENT}; font-size:11px; font-weight:bold; "
-            f"border-bottom:1px solid {BORDER}; padding-bottom:3px;"
+            f"padding-bottom:3px;"
         )
-        rl.addWidget(tbl_lbl)
-        self.table = QTableWidget(0, 10)
+        th_l.addWidget(tbl_lbl)
+        th_l.addStretch()
+
+        self.btn_export = QPushButton("💾 Export Results CSV")
+        self.btn_export.setEnabled(False)
+        self.btn_export.setCursor(Qt.PointingHandCursor)
+        self.btn_export.setStyleSheet(
+            f"background:{BG_CARD}; color:{TXT_MID}; border:1px solid {BORDER}; "
+            f"border-radius:4px; padding:4px 8px; font-size:10px;"
+        )
+        self.btn_export.clicked.connect(self.export_csv)
+        th_l.addWidget(self.btn_export)
+
+        rl.addWidget(tbl_hdr)
+        self.table = QTableWidget(0, 15)
         self.table.setHorizontalHeaderLabels([
-            "ID", "Class", "Archetype", "Lat", "Lon",
-            "PGA(g)", "P(DS1)", "P(DS2)", "P(DS3)", "P(DS4)",
+            "ID", "Class", "Arch", "PGA μ", "PGA σ",
+            "DS1 μ", "DS1 σ", "DS2 μ", "DS2 σ",
+            "DS3 μ", "DS3 σ", "DS4 μ", "DS4 σ", "Lat", "Lon"
         ])
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        hdr = self.table.horizontalHeader()
+        # All columns stretch equally — user can scroll with the horizontal bar
+        for c in range(15):
+            hdr.setSectionResizeMode(c, QHeaderView.Stretch)
+        # Slightly narrower ID column
+        self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.table.setColumnWidth(0, 36)
+        # Enable smooth horizontal scroll so nothing is clipped
+        self.table.setHorizontalScrollMode(QTableWidget.ScrollPerPixel)
+        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setSelectionBehavior(QTableWidget.SelectRows)
         self.table.setSelectionMode(QTableWidget.SingleSelection)
         self.table.setEditTriggers(QTableWidget.NoEditTriggers)
@@ -308,7 +362,7 @@ class RiskAssessmentPanel(QWidget):
     # ── Exposure ──────────────────────────────────────────────────────────────
     def load_from_detections(self, detections: list):
         """Called by RapidScanWindow whenever detection list updates."""
-        if not _RISK_OK:
+        if not _RISK_OK or self.csv_mode_active:
             return
         self.buildings = []
         for det in detections:
@@ -337,14 +391,20 @@ class RiskAssessmentPanel(QWidget):
             missing = {"id","lat","lon","classification"} - set(df.columns)
             if missing:
                 self._log(f"CSV missing columns: {missing}"); return
-            self.buildings = [
-                BuildingRecord(
+            
+            has_custom_id = "custom_site_id" in df.columns
+            self.buildings = []
+            self.csv_mode_active = True
+            for _, r in df.iterrows():
+                bld = BuildingRecord(
                     id=int(r["id"]), lat=float(r["lat"]),
                     lon=float(r["lon"]),
                     beit_class=str(r["classification"]),
                 )
-                for _, r in df.iterrows()
-            ]
+                if has_custom_id:
+                    bld.custom_site_id = str(r["custom_site_id"])
+                self.buildings.append(bld)
+                
             self._update_exposure_label()
             # Plot loaded CSV buildings on the map (matches RapidRisk behaviour)
             for b in self.buildings:
@@ -362,6 +422,27 @@ class RiskAssessmentPanel(QWidget):
             f"<b style='color:{ACCENT}'>{n}</b> buildings loaded"
         )
         self.btn_run.setEnabled(n > 0 and _RISK_OK)
+
+    def load_pga_csv(self):
+        if not _PANDAS_OK:
+            self._log("pandas not available.")
+            return
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Load PGA Actual CSV", "", "CSV Files (*.csv);;All Files (*)"
+        )
+        if not path:
+            return
+        try:
+            df = pd.read_csv(path, low_memory=False, comment='#')
+            if "custom_site_id" not in df.columns or "gmv_PGA" not in df.columns:
+                self._log("PGA CSV must contain 'custom_site_id' and 'gmv_PGA'.")
+                return
+            self.actual_pga_df = df
+            n_sites = df["custom_site_id"].nunique()
+            self.pga_lbl.setText(f"<b style='color:{ACCENT}'>{n_sites}</b> sites loaded from actual data")
+            self._log(f"Loaded {len(df)} actual GMV records from {os.path.basename(path)}")
+        except Exception as e:
+            self._log(f"PGA CSV load error: {e}")
 
     def _apply_preset(self, mw, dep, slat, slon):
         self.mw_spin.setValue(mw)
@@ -383,14 +464,17 @@ class RiskAssessmentPanel(QWidget):
             fault_type=self.fault_combo.currentText(),
             n_samples=self.samples_spin.value(),
         )
-        self._log(
-            f"[{datetime.now():%H:%M:%S}] Mw{params.Mw} scenario at "
-            f"({params.source_lat:.4f}, {params.source_lon:.4f}) — "
-            f"{len(self.buildings)} buildings"
-        )
+        if self.actual_pga_df is not None:
+             self._log(f"[{datetime.now():%H:%M:%S}] Running Assessment using ACTUAL empirical PGA data — {len(self.buildings)} buildings")
+        else:
+             self._log(
+                 f"[{datetime.now():%H:%M:%S}] Mw{params.Mw} scenario at "
+                 f"({params.source_lat:.4f}, {params.source_lon:.4f}) — "
+                 f"{len(self.buildings)} buildings"
+             )
         self.btn_run.setEnabled(False)
         self.risk_progress.setVisible(True)
-        self.calc_thread = RiskCalcThread(self.buildings, params)
+        self.calc_thread = RiskCalcThread(self.buildings, params, self.actual_pga_df)
         self.calc_thread.progress.connect(self._log)
         self.calc_thread.finished.connect(self._on_results)
         self.calc_thread.error.connect(self._on_error)
@@ -508,11 +592,12 @@ class RiskAssessmentPanel(QWidget):
             ds_color = QColor(DS_COLORS.get(r.mean_ds, BG_CARD))
             vals = [
                 str(r.id), r.beit_class, r.archetype,
-                f"{r.lat:.5f}", f"{r.lon:.5f}", f"{r.pga_median:.4f}",
-                f"{r.ds_probs.get('DS1',0):.3f}",
-                f"{r.ds_probs.get('DS2',0):.3f}",
-                f"{r.ds_probs.get('DS3',0):.3f}",
-                f"{r.ds_probs.get('DS4',0):.3f}",
+                f"{r.pga_mean:.4f}",  f"{r.pga_sigma:.4f}",
+                f"{r.ds_probs.get('DS1',0):.5f}", f"{r.ds_probs_sigma.get('DS1',0):.5f}",
+                f"{r.ds_probs.get('DS2',0):.5f}", f"{r.ds_probs_sigma.get('DS2',0):.5f}",
+                f"{r.ds_probs.get('DS3',0):.5f}", f"{r.ds_probs_sigma.get('DS3',0):.5f}",
+                f"{r.ds_probs.get('DS4',0):.5f}", f"{r.ds_probs_sigma.get('DS4',0):.5f}",
+                f"{r.lat:.5f}", f"{r.lon:.5f}",
             ]
             for col, val in enumerate(vals):
                 item = QTableWidgetItem(val)
@@ -545,3 +630,86 @@ class RiskAssessmentPanel(QWidget):
         self.log.append(msg)
         sb = self.log.verticalScrollBar()
         sb.setValue(sb.maximum())
+
+    def show_typology_dialog(self):
+        dlg = TypologyDialog(self)
+        if dlg.exec_():
+            data = dlg.get_data()
+            name = data["name"]
+            if not name:
+                self._log("Error: Typology name cannot be empty.")
+                return
+            ds_params = {
+                "DS1": (data["ds1_m"], data["ds1_b"]),
+                "DS2": (data["ds2_m"], data["ds2_b"]),
+                "DS3": (data["ds3_m"], data["ds3_b"]),
+                "DS4": (data["ds4_m"], data["ds4_b"]),
+            }
+            register_custom_typology(name, ds_params, data["period"], data["damping"])
+            self._log(f"Successfully added typology: {name}")
+
+
+class TypologyDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Add Building Typology")
+        self.setStyleSheet(f"background:{BG_PANEL}; color:{TXT_HI};")
+        self.setMinimumWidth(400)
+        
+        layout = QVBoxLayout(self)
+        form = QFormLayout()
+        
+        self.name_edit = QLineEdit()
+        self.name_edit.setPlaceholderText("e.g. MY_CUSTOM_RC")
+        self.name_edit.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI}; border:1px solid {BORDER}; padding:4px;")
+        form.addRow("Typology Name:", self.name_edit)
+        
+        self.spins = {}
+        for ds in ["DS1", "DS2", "DS3", "DS4"]:
+            m = QDoubleSpinBox()
+            m.setRange(-10, 10); m.setDecimals(4); m.setSingleStep(0.1)
+            # Find closest existing value or reasonable defaults
+            m.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI};")
+            
+            b = QDoubleSpinBox()
+            b.setRange(0.01, 2.0); b.setDecimals(4); b.setSingleStep(0.05); b.setValue(0.6)
+            b.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI};")
+            
+            self.spins[f"{ds}_m"] = m
+            self.spins[f"{ds}_b"] = b
+            
+            row = QHBoxLayout()
+            row.addWidget(QLabel("Median:"))
+            row.addWidget(m)
+            row.addWidget(QLabel("Beta:"))
+            row.addWidget(b)
+            form.addRow(f"<b>{ds}</b> Parameters:", row)
+            
+        self.period_spin = QDoubleSpinBox()
+        self.period_spin.setRange(0, 10); self.period_spin.setValue(0.3)
+        self.period_spin.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI};")
+        form.addRow("Fundamental Period (s):", self.period_spin)
+        
+        self.damping_spin = QDoubleSpinBox()
+        self.damping_spin.setRange(0, 100); self.damping_spin.setValue(5.0)
+        self.damping_spin.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI};")
+        form.addRow("Damping Ratio (%):", self.damping_spin)
+        
+        layout.addLayout(form)
+        
+        btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btns.setStyleSheet(f"QPushButton {{ background:{BG_CARD}; color:{TXT_HI}; border:1px solid {BORDER}; padding:5px; }}")
+        btns.accepted.connect(self.accept)
+        btns.rejected.connect(self.reject)
+        layout.addWidget(btns)
+        
+    def get_data(self):
+        res = {
+            "name": self.name_edit.text().strip(),
+            "period": self.period_spin.value(),
+            "damping": self.damping_spin.value()
+        }
+        for ds in ["DS1", "DS2", "DS3", "DS4"]:
+            res[f"{ds.lower()}_m"] = self.spins[f"{ds}_m"].value()
+            res[f"{ds.lower()}_b"] = self.spins[f"{ds}_b"].value()
+        return res

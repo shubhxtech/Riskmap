@@ -173,6 +173,10 @@ class MainApp(QMainWindow):
 
         # ── Risk Assessment: real-time video detection + seismic risk ──
         self.add_tab(RapidScanWindow, "Risk Assessment")
+
+        # ── 3D Reconstruction: NodeODM / WebODM drone photogrammetry ──
+        from rapidscan.odm_tab import ODMTab
+        self.add_tab(ODMTab, "3D Reconstruction")
         
         layout.addWidget(self.tabs, 7)
 

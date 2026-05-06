@@ -18,6 +18,9 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Tuple
 import json, os
 
+# Path for user-defined typologies (persistent across app restarts)
+CUSTOM_TYPOLOGIES_FILE = os.path.join(os.getcwd(), "custom_typologies.json")
+
 # ─────────────────────────────────────────────────────────────────────────────
 #  1. BUILDING CLASS → STRUCTURAL ARCHETYPE MAPPING
 # ─────────────────────────────────────────────────────────────────────────────
@@ -55,6 +58,54 @@ CLASS_TO_ARCHETYPE = {
     # Timber
     "Timber":             "W_WWD_LWAL_DNO_H1",
 }
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  1.1 REGISTRATION UTILITIES
+# ─────────────────────────────────────────────────────────────────────────────
+
+def register_custom_typology(name: str, ds_params: Dict[str, Tuple[float, float]], period: float = 0.0, damping: float = 5.0):
+    """
+    Dynamically adds a new typology to the engine and persists it to JSON.
+    """
+    # 1. Update in-memory dictionaries
+    FRAGILITY_LIB[name] = ds_params
+    CLASS_TO_ARCHETYPE[name] = name
+    
+    # 2. Save to persistent storage
+    data = {}
+    if os.path.exists(CUSTOM_TYPOLOGIES_FILE):
+        try:
+            with open(CUSTOM_TYPOLOGIES_FILE, "r") as f:
+                data = json.load(f)
+        except Exception:
+            data = {}
+            
+    data[name] = {
+        "ds_params": ds_params,
+        "period": period,
+        "damping": damping
+    }
+    
+    with open(CUSTOM_TYPOLOGIES_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+def load_custom_typologies():
+    """Reads custom typologies from JSON and injects them into the libraries."""
+    if not os.path.exists(CUSTOM_TYPOLOGIES_FILE):
+        return
+        
+    try:
+        with open(CUSTOM_TYPOLOGIES_FILE, "r") as f:
+            data = json.load(f)
+            for name, config in data.items():
+                ds_params = config.get("ds_params", {})
+                # Ensure keys are strings like "DS1"
+                params_fixed = {str(k): (float(v[0]), float(v[1])) for k, v in ds_params.items()}
+                FRAGILITY_LIB[name] = params_fixed
+                CLASS_TO_ARCHETYPE[name] = name
+    except Exception as e:
+        print(f"Error loading custom typologies: {e}")
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  2. FRAGILITY LIBRARY  (lognormal parameters per archetype)
@@ -402,10 +453,11 @@ class BuildingRecord:
     lat:            float
     lon:            float
     beit_class:     str
+    custom_site_id: str = ""
     archetype:      str = field(init=False)
 
     def __post_init__(self):
-        self.archetype = CLASS_TO_ARCHETYPE.get(self.beit_class, "RC_H1")
+        self.archetype = CLASS_TO_ARCHETYPE.get(self.beit_class, "CR_LFINF_DUL_H1")
 
 
 @dataclass
@@ -416,8 +468,11 @@ class BuildingResult:
     lat:         float
     lon:         float
     pga_median:  float        # g
+    pga_mean:    float        # g
+    pga_sigma:   float        # g (standard deviation)
     pga_84pct:   float        # g (84th percentile across aleatory samples)
     ds_probs:    Dict[str, float]
+    ds_probs_sigma: Dict[str, float]
     mean_ds:     str          # most-likely damage state
     loss_ratio:  float        # expected loss ratio 0–1
 
@@ -448,18 +503,21 @@ def run_scenario(
     for i, bldg in enumerate(buildings):
         samples_i   = pga_samples[i]
         pga_med     = float(np.median(samples_i))
+        pga_mean    = float(np.mean(samples_i))
+        pga_sigma   = float(np.std(samples_i))
         pga_84      = float(np.percentile(samples_i, 84))
 
-        # Compute mean damage probabilities across aleatory samples
-        ds_probs_acc = {k: 0.0 for k in ["None","DS1","DS2","DS3","DS4"]}
+        # Compute mean and standard deviations for damage probabilities
+        ds_samples = {k: [] for k in ["None","DS1","DS2","DS3","DS4"]}
         lr_acc = 0.0
         for pga_val in samples_i:
             dp = damage_state_probs(float(pga_val), bldg.archetype)
             for k in dp:
-                ds_probs_acc[k] += dp[k]
+                ds_samples[k].append(dp[k])
             lr_acc += expected_loss_ratio(float(pga_val), bldg.archetype)
 
-        ds_probs = {k: v / params.n_samples for k, v in ds_probs_acc.items()}
+        ds_probs       = {k: float(np.mean(ds_samples[k])) for k in ds_samples}
+        ds_probs_sigma = {k: float(np.std(ds_samples[k])) for k in ds_samples}
         lr       = lr_acc / params.n_samples
         mean_ds  = max(ds_probs, key=ds_probs.get)
 
@@ -470,8 +528,11 @@ def run_scenario(
             lat         = bldg.lat,
             lon         = bldg.lon,
             pga_median  = pga_med,
+            pga_mean    = pga_mean,
+            pga_sigma   = pga_sigma,
             pga_84pct   = pga_84,
             ds_probs    = ds_probs,
+            ds_probs_sigma = ds_probs_sigma,
             mean_ds     = mean_ds,
             loss_ratio  = lr,
         ))
@@ -485,13 +546,102 @@ def run_scenario(
             "Archetype":    r.archetype,
             "Lat":          round(r.lat, 6),
             "Lon":          round(r.lon, 6),
-            "PGA median(g)": round(r.pga_median, 4),
-            "PGA 84%(g)":   round(r.pga_84pct,  4),
+            "PGA μ(g)":     round(r.pga_mean, 4),
+            "PGA σ(g)":     round(r.pga_sigma, 4),
             "P(None)":      round(r.ds_probs["None"], 3),
-            "P(DS1)":       round(r.ds_probs["DS1"],  3),
-            "P(DS2)":       round(r.ds_probs["DS2"],  3),
-            "P(DS3)":       round(r.ds_probs["DS3"],  3),
-            "P(DS4)":       round(r.ds_probs["DS4"],  3),
+            "P(DS1) μ":     round(r.ds_probs["DS1"],  3),
+            "P(DS1) σ":     round(r.ds_probs_sigma["DS1"], 3),
+            "P(DS2) μ":     round(r.ds_probs["DS2"],  3),
+            "P(DS2) σ":     round(r.ds_probs_sigma["DS2"], 3),
+            "P(DS3) μ":     round(r.ds_probs["DS3"],  3),
+            "P(DS3) σ":     round(r.ds_probs_sigma["DS3"], 3),
+            "P(DS4) μ":     round(r.ds_probs["DS4"],  3),
+            "P(DS4) σ":     round(r.ds_probs_sigma["DS4"], 3),
+            "Mean DS":      r.mean_ds,
+            "Loss Ratio":   round(r.loss_ratio, 3),
+        })
+
+    df = pd.DataFrame(rows)
+    return results, df
+
+
+def run_actual_pga(
+    buildings: List[BuildingRecord],
+    pga_df: pd.DataFrame,
+) -> Tuple[List[BuildingResult], pd.DataFrame]:
+    """
+    Process risk using actual PGA empirical data (matched by custom_site_id).
+    pga_df must contain 'custom_site_id' and 'gmv_PGA'.
+    """
+    if not buildings or pga_df is None or pga_df.empty:
+        return [], pd.DataFrame()
+
+    results = []
+    # Group empirical samples by custom_site_id to a list of PGAs
+    grouped = pga_df.groupby("custom_site_id")["gmv_PGA"].apply(list).to_dict()
+
+    for bldg in buildings:
+        site_id = bldg.custom_site_id
+        samples_i = grouped.get(site_id, [])
+        if not samples_i:
+            samples_i = [0.001]  # Default tiny GMV if missing to avoid division-by-zero
+        
+        pga_array = np.array(samples_i)
+        pga_med   = float(np.median(pga_array))
+        pga_mean  = float(np.mean(pga_array))
+        pga_sigma = float(np.std(pga_array))
+        pga_84    = float(np.percentile(pga_array, 84))
+
+        ds_samples = {k: [] for k in ["None","DS1","DS2","DS3","DS4"]}
+        lr_acc = 0.0
+        n_samples = len(samples_i)
+        for pga_val in samples_i:
+            dp = damage_state_probs(float(pga_val), bldg.archetype)
+            for k in dp:
+                ds_samples[k].append(dp[k])
+            lr_acc += expected_loss_ratio(float(pga_val), bldg.archetype)
+
+        ds_probs       = {k: float(np.mean(ds_samples[k])) for k in ds_samples}
+        ds_probs_sigma = {k: float(np.std(ds_samples[k])) for k in ds_samples}
+        lr       = lr_acc / n_samples
+        mean_ds  = max(ds_probs, key=ds_probs.get)
+
+        results.append(BuildingResult(
+            id          = bldg.id,
+            beit_class  = bldg.beit_class,
+            archetype   = bldg.archetype,
+            lat         = bldg.lat,
+            lon         = bldg.lon,
+            pga_median  = pga_med,
+            pga_mean    = pga_mean,
+            pga_sigma   = pga_sigma,
+            pga_84pct   = pga_84,
+            ds_probs    = ds_probs,
+            ds_probs_sigma = ds_probs_sigma,
+            mean_ds     = mean_ds,
+            loss_ratio  = lr,
+        ))
+
+    # Summary DataFrame
+    rows = []
+    for r in results:
+        rows.append({
+            "ID":           r.id,
+            "BEiT Class":   r.beit_class,
+            "Archetype":    r.archetype,
+            "Lat":          round(r.lat, 6),
+            "Lon":          round(r.lon, 6),
+            "PGA μ(g)":     round(r.pga_mean, 4),
+            "PGA σ(g)":     round(r.pga_sigma, 4),
+            "P(None)":      round(r.ds_probs["None"], 3),
+            "P(DS1) μ":     round(r.ds_probs["DS1"],  3),
+            "P(DS1) σ":     round(r.ds_probs_sigma["DS1"], 3),
+            "P(DS2) μ":     round(r.ds_probs["DS2"],  3),
+            "P(DS2) σ":     round(r.ds_probs_sigma["DS2"], 3),
+            "P(DS3) μ":     round(r.ds_probs["DS3"],  3),
+            "P(DS3) σ":     round(r.ds_probs_sigma["DS3"], 3),
+            "P(DS4) μ":     round(r.ds_probs["DS4"],  3),
+            "P(DS4) σ":     round(r.ds_probs_sigma["DS4"], 3),
             "Mean DS":      r.mean_ds,
             "Loss Ratio":   round(r.loss_ratio, 3),
         })
@@ -516,5 +666,5 @@ def portfolio_summary(results: List[BuildingResult]) -> Dict:
         "ds_pct":         {k: round(100*v/n,1) for k,v in ds_counts.items()},
         "avg_loss_ratio": round(float(avg_lr), 3),
         "total_loss_units": round(float(total_lr), 2),
-        "pga_mean_g":     round(float(np.mean([r.pga_median for r in results])), 4),
+        "pga_mean_g":     round(float(np.mean([r.pga_mean for r in results])), 4),
     }

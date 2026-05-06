@@ -14,9 +14,11 @@ from ._constants import (
 from ._video_processor import VideoProcessor
 from ._risk_panel import MplCanvas, RiskCalcThread, RiskAssessmentPanel
 from ._window import RapidScanWindow
+from .odm_tab import ODMTab
 
 __all__ = [
     "RapidScanWindow",
+    "ODMTab",
     "VideoProcessor",
     "RiskAssessmentPanel",
     "MplCanvas",
