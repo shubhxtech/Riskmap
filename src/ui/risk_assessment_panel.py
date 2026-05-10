@@ -129,6 +129,37 @@ class RiskAssessmentPanel(QWidget):
         ll = QVBoxLayout(left)
         ll.setSpacing(10)
 
+        # ── Pipeline Results loader ───────────────────────────────────────────
+        results_grp = QGroupBox("📂  PIPELINE RESULTS")
+        rg = QVBoxLayout(results_grp); rg.setSpacing(6)
+
+        self.results_lbl = QLabel("No results loaded")
+        self.results_lbl.setWordWrap(True)
+        self.results_lbl.setStyleSheet(f"color:{TXT_MID}; font-size:10px;")
+
+        self.btn_load_results = QPushButton("📁  Load Output Folder…")
+        self.btn_load_results.setCursor(Qt.PointingHandCursor)
+        self.btn_load_results.setStyleSheet(
+            f"background:{ACCENT}; color:#fff; font-weight:700; border:none; "
+            f"border-radius:6px; padding:8px; font-size:11px;"
+        )
+        self.btn_load_results.clicked.connect(self.load_pipeline_results)
+
+        self.btn_clear_map = QPushButton("🗑  Clear Map Markers")
+        self.btn_clear_map.setCursor(Qt.PointingHandCursor)
+        self.btn_clear_map.setStyleSheet(
+            f"background:{BG_CARD}; color:{TXT_MID}; border:1px solid {BORDER}; "
+            f"border-radius:6px; padding:6px; font-size:10px;"
+        )
+        self.btn_clear_map.clicked.connect(
+            lambda: self.map_update_requested.emit(-1, "__clear__", "", 0.0, 0.0)
+        )
+
+        rg.addWidget(self.results_lbl)
+        rg.addWidget(self.btn_load_results)
+        rg.addWidget(self.btn_clear_map)
+        ll.addWidget(results_grp)
+
         # Exposure
         exp_grp = QGroupBox("EXPOSURE")
         eg = QVBoxLayout(exp_grp)
@@ -164,6 +195,7 @@ class RiskAssessmentPanel(QWidget):
         eg.addSpacing(10)
         eg.addWidget(self.btn_add_typology)
         ll.addWidget(exp_grp)
+
 
         # Earthquake scenario
         eq_grp = QGroupBox("EARTHQUAKE SCENARIO")
@@ -443,6 +475,84 @@ class RiskAssessmentPanel(QWidget):
             self._log(f"Loaded {len(df)} actual GMV records from {os.path.basename(path)}")
         except Exception as e:
             self._log(f"PGA CSV load error: {e}")
+
+    def load_pipeline_results(self):
+        """Load the 360° pipeline output folder and plot all buildings on the shared map."""
+        import glob, json
+
+        folder = QFileDialog.getExistingDirectory(
+            self, "Select Pipeline Output Folder", ""
+        )
+        if not folder:
+            return
+
+        # ── Try GeoJSON first ─────────────────────────────────────────────────
+        geojsons = glob.glob(os.path.join(folder, "*.geojson"))
+        if geojsons:
+            try:
+                with open(geojsons[0], "r") as f:
+                    gj = json.load(f)
+                features = gj.get("features", [])
+                count = 0
+                for feat in features:
+                    props = feat.get("properties", {})
+                    geom  = feat.get("geometry", {})
+                    coords = geom.get("coordinates", [0, 0])
+                    lon = float(coords[0]) if len(coords) >= 2 else 0.0
+                    lat = float(coords[1]) if len(coords) >= 2 else 0.0
+                    bid = int(props.get("id", count + 1))
+                    cls = str(props.get("classification", props.get("label", "Unknown")))
+                    color = ("#3b82f6" if cls.startswith("RCC") else
+                             "#f59e0b" if cls.startswith("MR") else
+                             "#8b5cf6" if cls.startswith("Metal") else
+                             "#9ca3af" if "Non_Building" in cls else "#00d4aa")
+                    self.map_update_requested.emit(bid, color, cls, lat, lon)
+                    count += 1
+                self.results_lbl.setText(
+                    f"<b style='color:{ACCENT}'>{count}</b> buildings plotted "
+                    f"from {os.path.basename(geojsons[0])}"
+                )
+                self._log(f"✅ Plotted {count} buildings from GeoJSON on map.")
+                return
+            except Exception as e:
+                self._log(f"GeoJSON load error: {e}")
+
+        # ── Fallback: Excel ───────────────────────────────────────────────────
+        if not _PANDAS_OK:
+            self._log("pandas not available — cannot read Excel.")
+            return
+        xlsxs = glob.glob(os.path.join(folder, "*.xlsx"))
+        if not xlsxs:
+            self._log("No .geojson or .xlsx found in the selected folder.")
+            return
+        try:
+            df = pd.read_excel(xlsxs[0])
+            lat_col = next((c for c in df.columns if "lat" in c.lower()), None)
+            lon_col = next((c for c in df.columns if "lon" in c.lower()), None)
+            cls_col = next((c for c in df.columns
+                            if "class" in c.lower() or "label" in c.lower()), None)
+            if not all([lat_col, lon_col, cls_col]):
+                self._log(f"Excel missing lat/lon/class columns. Found: {list(df.columns)}")
+                return
+            count = 0
+            for i, row in df.iterrows():
+                lat = float(row[lat_col])
+                lon = float(row[lon_col])
+                cls = str(row[cls_col])
+                bid = int(row["id"]) if "id" in df.columns else i + 1
+                color = ("#3b82f6" if cls.startswith("RCC") else
+                         "#f59e0b" if cls.startswith("MR") else
+                         "#8b5cf6" if cls.startswith("Metal") else
+                         "#9ca3af" if "Non_Building" in cls else "#00d4aa")
+                self.map_update_requested.emit(bid, color, cls, lat, lon)
+                count += 1
+            self.results_lbl.setText(
+                f"<b style='color:{ACCENT}'>{count}</b> buildings plotted "
+                f"from {os.path.basename(xlsxs[0])}"
+            )
+            self._log(f"✅ Plotted {count} buildings from Excel on map.")
+        except Exception as e:
+            self._log(f"Excel load error: {e}")
 
     def _apply_preset(self, mw, dep, slat, slon):
         self.mw_spin.setValue(mw)

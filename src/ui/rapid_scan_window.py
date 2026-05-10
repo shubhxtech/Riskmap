@@ -201,8 +201,6 @@ class RapidScanWindow(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        root.addWidget(self._build_toolbar())
-
         # ── Main vertical splitter ────────────────────────────────────────────
         self.main_splitter = QSplitter(Qt.Vertical)
         self.main_splitter.setChildrenCollapsible(False)
@@ -262,9 +260,9 @@ class RapidScanWindow(QWidget):
         self._clip.setMinimumHeight(0)               # splitter can crush viewport to 0
 
         self.main_splitter.addWidget(self._clip)
-        self.main_splitter.setSizes([400, 500])
+        self.main_splitter.setSizes([600, 400])
         self.main_splitter.setStretchFactor(0, 1)
-        self.main_splitter.setStretchFactor(1, 1)
+        self.main_splitter.setStretchFactor(1, 0)
 
         root.addWidget(self.main_splitter, 1)
 
@@ -275,28 +273,6 @@ class RapidScanWindow(QWidget):
         super().resizeEvent(event)
         if hasattr(self, "_bottom_widget") and hasattr(self, "main_splitter"):
             self._bottom_widget.setFixedWidth(self.main_splitter.width())
-
-    def _build_toolbar(self) -> QFrame:
-        toolbar = QFrame()
-        toolbar.setStyleSheet(
-            f"QFrame {{ background:{BG_PANEL}; border-bottom:2px solid {ACCENT}; }}"
-        )
-        tb = QHBoxLayout(toolbar)
-        tb.setContentsMargins(18, 10, 18, 10)
-        tb.setSpacing(14)
-
-        # Push the GPS label to the right
-        tb.addStretch()
-
-        self.gps_lbl = QLabel(
-            f"📍 Origin: {self.gps_origin[0]:.4f}, {self.gps_origin[1]:.4f}"
-        )
-        self.gps_lbl.setStyleSheet(
-            f"font-size:10px; color:{TXT_LOW}; background:transparent; "
-            f"font-family:{FONT_MONO};"
-        )
-        tb.addWidget(self.gps_lbl)
-        return toolbar
 
     def _build_detection_tab(self) -> QWidget:
         det_tab = QWidget()
@@ -407,47 +383,10 @@ class RapidScanWindow(QWidget):
         ctrl_layout.addStretch()
         content_splitter.addWidget(ctrl_panel)
 
-        # ── Right: video + log ────────────────────────────────────────────────
-        video_outer = QWidget()
-        vo = QVBoxLayout(video_outer)
-        vo.setContentsMargins(0, 0, 0, 0); vo.setSpacing(6)
-
-        vid_grp = QGroupBox("🎥  VIDEO FEED")
-        vg = QVBoxLayout(vid_grp); vg.setSpacing(6)
-        self.video_label = QLabel("Load a 360° video file to begin")
-        self.video_label.setAlignment(Qt.AlignCenter)
-        self.video_label.setStyleSheet(
-            f"background:{BG_DEEP}; border-radius:8px; color:{TXT_MID}; "
-            f"font-size:13px; font-style:italic;"
-        )
-        self.video_label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.video_label.setMinimumHeight(120)
-        vg.addWidget(self.video_label)
-
-        # Playback bar
-        self.playback_controls = QWidget()
-        pc = QHBoxLayout(self.playback_controls)
-        pc.setContentsMargins(0, 2, 0, 0); pc.setSpacing(8)
-        self.btn_play_pause = QPushButton("⏸")
-        self.btn_play_pause.setFixedSize(36, 30)
-        self.btn_play_pause.setToolTip("Play / Pause")
-        self.btn_play_pause.setCursor(Qt.PointingHandCursor)
-        self.btn_play_pause.clicked.connect(self.toggle_playback)
-        self.frame_lbl = QLabel("0 / 0")
-        self.frame_lbl.setStyleSheet(
-            f"color:{TXT_LOW}; font-size:10px; font-family:{FONT_MONO}; min-width:80px;"
-        )
-        self.frame_lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        self.video_slider = QSlider(Qt.Horizontal)
-        self.video_slider.setTracking(False)
-        self.video_slider.sliderMoved.connect(self.seek_video)
-        self.video_slider.valueChanged.connect(self._on_slider_value_changed)
-        pc.addWidget(self.btn_play_pause)
-        pc.addWidget(self.video_slider, 1)
-        pc.addWidget(self.frame_lbl)
-        vg.addWidget(self.playback_controls)
-        self.playback_controls.setVisible(False)
-        vo.addWidget(vid_grp, 3)
+        # ── Right: log area only ──────────────────────────────────────────────
+        log_outer = QWidget()
+        lo = QVBoxLayout(log_outer)
+        lo.setContentsMargins(0, 0, 0, 0); lo.setSpacing(6)
 
         # Detection + Processing log
         log_splitter = QSplitter(Qt.Horizontal)
@@ -483,9 +422,9 @@ class RapidScanWindow(QWidget):
         lg.addWidget(self.log_text)
         log_splitter.addWidget(log_grp)
         log_splitter.setSizes([500, 300])
-        vo.addWidget(log_splitter, 2)
+        lo.addWidget(log_splitter)
 
-        content_splitter.addWidget(video_outer)
+        content_splitter.addWidget(log_outer)
         content_splitter.setStretchFactor(0, 0)
         content_splitter.setStretchFactor(1, 1)
         det_layout.addWidget(content_splitter)
@@ -700,8 +639,12 @@ function clearMarkers() {{
         self, marker_id: int, color: str, classification: str,
         lat: float, lon: float
     ):
-        """Update or add a Leaflet marker — called from risk panel after
-        CSV load (colour=#00d4aa) and after risk results (DS colours)."""
+        """Update or add a Leaflet marker. Special color '__clear__' wipes all markers."""
+        if color == "__clear__":
+            self.web_view.page().runJavaScript(
+                "if(typeof clearMarkers==='function') clearMarkers();"
+            )
+            return
         safe_cls = js_escape(classification)
         self.web_view.page().runJavaScript(
             f"if(typeof updateMap==='function') "

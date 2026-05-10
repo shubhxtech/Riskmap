@@ -116,7 +116,7 @@ from api_window import ApiWindow
 # from duplicates import DuplicatesWindow  (loaded by SplitProcessingWindow)
 from model_training import Trainer
 from ui.rapid_scan_window import RapidScanWindow
-from results_window import ResultsWindow
+
 logger.log_status(f'Time taken to import modules: {time.time()-a}.')
 
 logger.log_status('Modules imported. Starting Main App')
@@ -168,9 +168,6 @@ class MainApp(QMainWindow):
         split_tab = self.add_tab(SplitProcessingWindow, "Analyze & Filter")
         split_tab.add_model_requested.connect(self.add_model_form)
         
-        # ── Results: image classification viewer ──────
-        self.add_tab(ResultsWindow, "Results")
-
         # ── Risk Assessment: real-time video detection + seismic risk ──
         self.add_tab(RapidScanWindow, "Risk Assessment")
 
