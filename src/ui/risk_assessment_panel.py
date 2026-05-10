@@ -28,6 +28,195 @@ from .constants import (
     TXT_HI, TXT_MID, TXT_LOW, MPL_STYLE, DS_COLORS, DEFAULT_GPS_ORIGIN,
 )
 
+# ── Panel-scoped stylesheet (preserves BRAND_THEME, overrides locally) ────────
+_PANEL_QSS = f"""
+/* === Group Boxes === */
+QGroupBox {{
+    background: #ffffff;
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+    margin-top: 18px;
+    padding-top: 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: {ACCENT};
+}}
+QGroupBox::title {{
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 2px 10px;
+    background: #ffffff;
+    border-radius: 4px;
+    color: {ACCENT};
+}}
+
+/* === ComboBox (Fault type dropdown) === */
+QComboBox {{
+    background: {BG_CARD};
+    border: 1.5px solid {BORDER};
+    border-radius: 7px;
+    padding: 5px 10px;
+    padding-right: 28px;
+    color: {TXT_HI};
+    font-size: 12px;
+    min-height: 22px;
+}}
+QComboBox:hover {{
+    border-color: {ACCENT};
+    background: #f0f7ff;
+}}
+QComboBox:focus, QComboBox:on {{
+    border: 2px solid {ACCENT};
+    background: #f0f7ff;
+}}
+QComboBox::drop-down {{
+    subcontrol-origin: padding;
+    subcontrol-position: center right;
+    width: 26px;
+    border: none;
+    background: transparent;
+}}
+QComboBox::down-arrow {{
+    image: none;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid {TXT_MID};
+    margin-right: 8px;
+}}
+QComboBox::down-arrow:on {{
+    border-top: none;
+    border-bottom: 6px solid {ACCENT};
+}}
+QComboBox QAbstractItemView {{
+    background: #ffffff;
+    border: 1.5px solid {BORDER};
+    border-radius: 7px;
+    selection-background-color: #e3f2fd;
+    selection-color: {ACCENT};
+    outline: none;
+    padding: 4px;
+}}
+QComboBox QAbstractItemView::item {{
+    padding: 7px 12px;
+    border-radius: 5px;
+    min-height: 22px;
+    color: {TXT_HI};
+    font-size: 12px;
+}}
+QComboBox QAbstractItemView::item:hover {{
+    background: #e8f4fd;
+    color: {ACCENT};
+}}
+QComboBox QAbstractItemView::item:selected {{
+    background: #dbeafe;
+    color: {ACCENT};
+    font-weight: 600;
+}}
+
+/* === SpinBoxes === */
+QDoubleSpinBox, QSpinBox {{
+    background: {BG_CARD};
+    border: 1.5px solid {BORDER};
+    border-radius: 7px;
+    padding: 4px 8px;
+    color: {TXT_HI};
+    font-size: 12px;
+    min-height: 22px;
+}}
+QDoubleSpinBox:focus, QSpinBox:focus {{
+    border: 2px solid {ACCENT};
+    background: #f0f7ff;
+}}
+QDoubleSpinBox::up-button, QDoubleSpinBox::down-button,
+QSpinBox::up-button, QSpinBox::down-button {{
+    background: transparent;
+    border: none;
+    width: 16px;
+}}
+
+/* === Line Edit === */
+QLineEdit {{
+    background: {BG_CARD};
+    border: 1.5px solid {BORDER};
+    border-radius: 7px;
+    padding: 6px 10px;
+    color: {TXT_HI};
+    font-size: 12px;
+    min-height: 22px;
+}}
+QLineEdit:focus {{
+    border: 2px solid {ACCENT};
+    background: #f0f7ff;
+}}
+
+/* === Table === */
+QTableWidget {{
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    background: #ffffff;
+    alternate-background-color: {BG_CARD};
+    gridline-color: {BORDER};
+    font-size: 11px;
+    color: {TXT_HI};
+}}
+QHeaderView::section {{
+    background: {BG_CARD};
+    color: {TXT_MID};
+    border: none;
+    border-bottom: 2px solid {BORDER};
+    padding: 5px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}}
+QTableWidget::item:selected {{
+    background: #dbeafe;
+    color: {ACCENT};
+}}
+
+/* === Log TextEdit === */
+QTextEdit {{
+    background: {BG_CARD};
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    padding: 6px;
+    color: {TXT_MID};
+    font-size: 11px;
+}}
+
+/* === Progress Bar === */
+QProgressBar {{
+    border: none;
+    border-radius: 5px;
+    background: {BORDER};
+    min-height: 6px;
+    max-height: 6px;
+}}
+QProgressBar::chunk {{
+    background: {ACCENT};
+    border-radius: 5px;
+}}
+
+/* === Scroll Bars === */
+QScrollBar:vertical {{
+    border: none; background: transparent; width: 6px;
+}}
+QScrollBar::handle:vertical {{
+    background: {BORDER}; border-radius: 3px; min-height: 24px;
+}}
+QScrollBar::handle:vertical:hover {{ background: {ACCENT}; }}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{ height: 0; }}
+QScrollBar:horizontal {{
+    border: none; background: transparent; height: 6px;
+}}
+QScrollBar::handle:horizontal {{
+    background: {BORDER}; border-radius: 3px; min-width: 24px;
+}}
+QScrollBar::handle:horizontal:hover {{ background: {ACCENT}; }}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{ width: 0; }}
+"""
+
 try:
     import pandas as pd
     _PANDAS_OK = True
@@ -116,18 +305,21 @@ class RiskAssessmentPanel(QWidget):
 
     # ── UI construction ───────────────────────────────────────────────────────
     def _build_ui(self):
+        self.setStyleSheet(_PANEL_QSS)
         root = QHBoxLayout(self)
-        root.setContentsMargins(10, 10, 10, 10)
-        root.setSpacing(12)
+        root.setContentsMargins(12, 12, 12, 12)
+        root.setSpacing(14)
 
         splitter = QSplitter(Qt.Horizontal)
         splitter.setChildrenCollapsible(False)
+        splitter.setStyleSheet(f"QSplitter::handle {{ background:{BORDER}; width:2px; }}")
 
         # LEFT: scenario inputs
         left = QWidget()
-        left.setMaximumWidth(330)
+        left.setMaximumWidth(340)
         ll = QVBoxLayout(left)
-        ll.setSpacing(10)
+        ll.setSpacing(12)
+        ll.setContentsMargins(0, 0, 0, 0)
 
         # ── Pipeline Results loader ───────────────────────────────────────────
         results_grp = QGroupBox("📂  PIPELINE RESULTS")
@@ -140,16 +332,16 @@ class RiskAssessmentPanel(QWidget):
         self.btn_load_results = QPushButton("📁  Load Output Folder…")
         self.btn_load_results.setCursor(Qt.PointingHandCursor)
         self.btn_load_results.setStyleSheet(
-            f"background:{ACCENT}; color:#fff; font-weight:700; border:none; "
-            f"border-radius:6px; padding:8px; font-size:11px;"
+            f"background:{ACCENT}; color:#fff; font-weight:700; border:none;"
+            f"border-radius:8px; padding:9px 14px; font-size:12px;"
         )
         self.btn_load_results.clicked.connect(self.load_pipeline_results)
 
         self.btn_clear_map = QPushButton("🗑  Clear Map Markers")
         self.btn_clear_map.setCursor(Qt.PointingHandCursor)
         self.btn_clear_map.setStyleSheet(
-            f"background:{BG_CARD}; color:{TXT_MID}; border:1px solid {BORDER}; "
-            f"border-radius:6px; padding:6px; font-size:10px;"
+            f"background:{BG_CARD}; color:{TXT_MID}; border:1.5px solid {BORDER};"
+            f"border-radius:8px; padding:7px 14px; font-size:11px;"
         )
         self.btn_clear_map.clicked.connect(
             lambda: self.map_update_requested.emit(-1, "__clear__", "", 0.0, 0.0)
@@ -169,6 +361,10 @@ class RiskAssessmentPanel(QWidget):
         
         self.btn_load_csv = QPushButton("📂  Load Exposure CSV")
         self.btn_load_csv.setCursor(Qt.PointingHandCursor)
+        self.btn_load_csv.setStyleSheet(
+            f"background:{BG_CARD}; color:{TXT_MID}; border:1.5px solid {BORDER};"
+            f"border-radius:8px; padding:7px 14px; font-size:11px;"
+        )
         self.btn_load_csv.clicked.connect(self.load_exposure_csv)
         
         self.pga_lbl = QLabel("No actual PGA loaded (using scenario)")
@@ -177,13 +373,17 @@ class RiskAssessmentPanel(QWidget):
         
         self.btn_load_pga = QPushButton("📂  Load PGA Actual CSV")
         self.btn_load_pga.setCursor(Qt.PointingHandCursor)
+        self.btn_load_pga.setStyleSheet(
+            f"background:{BG_CARD}; color:{TXT_MID}; border:1.5px solid {BORDER};"
+            f"border-radius:8px; padding:7px 14px; font-size:11px;"
+        )
         self.btn_load_pga.clicked.connect(self.load_pga_csv)
 
         self.btn_add_typology = QPushButton("➕  Add Building Typology")
         self.btn_add_typology.setCursor(Qt.PointingHandCursor)
         self.btn_add_typology.setStyleSheet(
-            f"background:{BG_CARD}; color:{ACCENT}; border:1px solid {ACCENT}; "
-            f"border-radius:6px; padding:6px; font-weight:bold;"
+            f"background:#fff; color:{ACCENT}; border:2px solid {ACCENT};"
+            f"border-radius:8px; padding:7px 14px; font-weight:700; font-size:11px;"
         )
         self.btn_add_typology.clicked.connect(self.show_typology_dialog)
         
@@ -261,9 +461,10 @@ class RiskAssessmentPanel(QWidget):
         ]:
             btn = QPushButton(name)
             btn.setStyleSheet(
-                f"text-align:left; padding:5px 8px; font-size:10px; "
-                f"background:{BG_CARD}; color:{TXT_MID}; "
-                f"border:1px solid {BORDER}; border-radius:4px;"
+                f"text-align:left; padding:7px 12px; font-size:11px; "
+                f"background:#ffffff; color:{TXT_MID}; "
+                f"border:1.5px solid {BORDER}; border-radius:8px;"
+                f"font-weight:500;"
             )
             btn.setCursor(Qt.PointingHandCursor)
             btn.clicked.connect(
@@ -277,8 +478,8 @@ class RiskAssessmentPanel(QWidget):
         self.btn_run.setEnabled(False)
         self.btn_run.setCursor(Qt.PointingHandCursor)
         self.btn_run.setStyleSheet(
-            f"background:{ACCENT}; color:#fff; font-weight:700; border:none; "
-            f"border-radius:6px; padding:10px; font-size:13px;"
+            f"background:{ACCENT}; color:#fff; font-weight:800; border:none;"
+            f"border-radius:9px; padding:11px; font-size:13px; letter-spacing:0.5px;"
         )
         self.btn_run.clicked.connect(self.run_assessment)
         ll.addWidget(self.btn_run)
@@ -313,18 +514,18 @@ class RiskAssessmentPanel(QWidget):
         ]:
             card = QWidget()
             card.setStyleSheet(
-                f"background:{BG_CARD}; border:1px solid {BORDER}; "
-                f"border-radius:8px; padding:8px;"
+                f"background:#ffffff; border:1.5px solid {BORDER};"
+                f"border-radius:12px; padding:10px;"
             )
-            cl = QVBoxLayout(card); cl.setSpacing(2)
+            cl = QVBoxLayout(card); cl.setSpacing(3)
             val_lbl = QLabel(default)
             val_lbl.setStyleSheet(
-                f"color:{ACCENT}; font-size:20px; font-weight:700;"
+                f"color:{ACCENT}; font-size:22px; font-weight:800; border:none;"
             )
             val_lbl.setAlignment(Qt.AlignCenter)
             name_lbl = QLabel(label)
             name_lbl.setAlignment(Qt.AlignCenter)
-            name_lbl.setStyleSheet(f"color:{TXT_LOW}; font-size:10px;")
+            name_lbl.setStyleSheet(f"color:{TXT_LOW}; font-size:10px; font-weight:600; letter-spacing:0.3px; border:none;")
             cl.addWidget(val_lbl); cl.addWidget(name_lbl)
             kpi_l.addWidget(card)
             self.kpi_widgets[key] = val_lbl
@@ -355,8 +556,8 @@ class RiskAssessmentPanel(QWidget):
         self.btn_export.setEnabled(False)
         self.btn_export.setCursor(Qt.PointingHandCursor)
         self.btn_export.setStyleSheet(
-            f"background:{BG_CARD}; color:{TXT_MID}; border:1px solid {BORDER}; "
-            f"border-radius:4px; padding:4px 8px; font-size:10px;"
+            f"background:#fff; color:{ACCENT}; border:1.5px solid {ACCENT};"
+            f"border-radius:7px; padding:5px 12px; font-size:11px; font-weight:600;"
         )
         self.btn_export.clicked.connect(self.export_csv)
         th_l.addWidget(self.btn_export)
@@ -763,27 +964,69 @@ class TypologyDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Add Building Typology")
-        self.setStyleSheet(f"background:{BG_PANEL}; color:{TXT_HI};")
-        self.setMinimumWidth(400)
-        
+        self.setMinimumWidth(460)
+        self.setStyleSheet(f"""
+            QDialog {{
+                background: #ffffff;
+            }}
+            QLabel {{
+                color: {TXT_HI};
+                font-size: 12px;
+                font-weight: 600;
+            }}
+            QLineEdit, QDoubleSpinBox {{
+                background: {BG_CARD};
+                border: 1.5px solid {BORDER};
+                border-radius: 7px;
+                padding: 6px 10px;
+                color: {TXT_HI};
+                font-size: 12px;
+                min-height: 24px;
+            }}
+            QLineEdit:focus, QDoubleSpinBox:focus {{
+                border: 2px solid {ACCENT};
+                background: #f0f7ff;
+            }}
+            QPushButton {{
+                background: {ACCENT};
+                color: #fff;
+                border: none;
+                border-radius: 8px;
+                padding: 9px 22px;
+                font-weight: 700;
+                font-size: 12px;
+            }}
+            QPushButton:hover {{
+                background: #1A91DA;
+            }}
+            QPushButton[text="Cancel"] {{
+                background: {BG_CARD};
+                color: {TXT_MID};
+                border: 1.5px solid {BORDER};
+            }}
+            QPushButton[text="Cancel"]:hover {{
+                border-color: {ACCENT};
+                color: {ACCENT};
+            }}
+        """)
+
         layout = QVBoxLayout(self)
+        layout.setSpacing(14)
+        layout.setContentsMargins(20, 20, 20, 20)
         form = QFormLayout()
+        form.setSpacing(10)
         
         self.name_edit = QLineEdit()
         self.name_edit.setPlaceholderText("e.g. MY_CUSTOM_RC")
-        self.name_edit.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI}; border:1px solid {BORDER}; padding:4px;")
         form.addRow("Typology Name:", self.name_edit)
         
         self.spins = {}
         for ds in ["DS1", "DS2", "DS3", "DS4"]:
             m = QDoubleSpinBox()
             m.setRange(-10, 10); m.setDecimals(4); m.setSingleStep(0.1)
-            # Find closest existing value or reasonable defaults
-            m.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI};")
-            
+
             b = QDoubleSpinBox()
             b.setRange(0.01, 2.0); b.setDecimals(4); b.setSingleStep(0.05); b.setValue(0.6)
-            b.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI};")
             
             self.spins[f"{ds}_m"] = m
             self.spins[f"{ds}_b"] = b
@@ -797,20 +1040,18 @@ class TypologyDialog(QDialog):
             
         self.period_spin = QDoubleSpinBox()
         self.period_spin.setRange(0, 10); self.period_spin.setValue(0.3)
-        self.period_spin.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI};")
         form.addRow("Fundamental Period (s):", self.period_spin)
         
         self.damping_spin = QDoubleSpinBox()
         self.damping_spin.setRange(0, 100); self.damping_spin.setValue(5.0)
-        self.damping_spin.setStyleSheet(f"background:{BG_CARD}; color:{TXT_HI};")
         form.addRow("Damping Ratio (%):", self.damping_spin)
         
         layout.addLayout(form)
-        
+
         btns = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        btns.setStyleSheet(f"QPushButton {{ background:{BG_CARD}; color:{TXT_HI}; border:1px solid {BORDER}; padding:5px; }}")
         btns.accepted.connect(self.accept)
         btns.rejected.connect(self.reject)
+        layout.addSpacing(6)
         layout.addWidget(btns)
         
     def get_data(self):

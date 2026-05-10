@@ -76,79 +76,135 @@ class Classify:
         self.device = None  # Will be set in instantiate_model
 
     def instantiate_model(self):
-        import torch
+        model_path = str(self.model_dir)
+
+        # ── Keras / TensorFlow path ───────────────────────────────────────────
+        if model_path.endswith('.keras') or model_path.endswith('.h5'):
+            self.model_type = "keras"
+            self.logger.log_status(f"Loading Keras model from {model_path}…")
+            try:
+                import tensorflow as tf
+            except ImportError:
+                raise RuntimeError(
+                    "TensorFlow is not installed on this machine.\n"
+                    "Run: pip install tensorflow"
+                )
+            self.tf = tf
+            self.torch = None  # not needed for Keras
+
+            # 1. Disable mixed-precision globally so the model loads on CPU/any GPU
+            try:
+                tf.keras.mixed_precision.set_global_policy("float32")
+            except Exception:
+                pass
+
+            # 2. Try native load; if it fails try safe_format=False (legacy HDF5)
+            model = None
+            load_errors = []
+            for kwargs in [
+                {},                            # default (tries SavedModel then HDF5)
+                {"compile": False},            # skip optimizer restore — fixes legacy.Adam crash
+                {"compile": False, "safe_mode": False},  # TF 2.13+
+            ]:
+                try:
+                    model = tf.keras.models.load_model(model_path, **kwargs)
+                    self.logger.log_status(
+                        f"Keras model loaded (kwargs={kwargs or 'default'})"
+                    )
+                    break
+                except Exception as e:
+                    load_errors.append(f"  attempt {len(load_errors)+1}: {e}")
+
+            if model is None:
+                detail = "\n".join(load_errors)
+                raise RuntimeError(
+                    f"Failed to load Keras model '{model_path}' after all attempts:\n{detail}\n"
+                    "Tip: Re-train the model on this machine, or export it with:\n"
+                    "  model.save('my_model.keras', include_optimizer=False)"
+                )
+
+            # 3. Cast all layers to float32 so inference works on any platform
+            try:
+                for layer in model.layers:
+                    layer_cfg = layer.get_config()
+                    if layer_cfg.get("dtype") == "float16":
+                        layer._dtype_policy = tf.keras.mixed_precision.Policy("float32")
+            except Exception:
+                pass  # non-critical — carry on
+
+            self.logger.log_status("Keras classification weights loaded successfully")
+            return model, None  # No processor needed for Keras
+
+        # ── PyTorch / HuggingFace BEiT path ──────────────────────────────────
+        self.model_type = "pytorch"
+        try:
+            import torch
+        except ImportError:
+            raise RuntimeError(
+                "PyTorch is not installed on this machine.\n"
+                "Install from https://pytorch.org/get-started/locally/"
+            )
         self.torch = torch
-        
-        # Setup device
+
+        # Safe cross-platform device selection
         if self._user_device:
             self.device = self._user_device
         else:
-            self.device = self.torch.device("cuda" if self.torch.cuda.is_available() else "mps" if self.torch.backends.mps.is_available() else "cpu")
+            if torch.cuda.is_available():
+                self.device = torch.device("cuda")
+            elif getattr(torch.backends, "mps", None) and torch.backends.mps.is_available():
+                self.device = torch.device("mps")
+            else:
+                self.device = torch.device("cpu")
         self.logger.log_status(f"Using device: {self.device}")
 
-        model_path = str(self.model_dir)
-        
-        # Check if model is Keras/TensorFlow based on extension
-        if model_path.endswith('.keras') or model_path.endswith('.h5'):
-            self.model_type = "keras"
-            self.logger.log_status(f"Loading Keras model from {model_path}...")
-            import tensorflow as tf
-            self.tf = tf
-            try:
-                # Load Keras model
-                model = tf.keras.models.load_model(model_path)
-                self.logger.log_status("Keras classification weights loaded successfully")
-                return model, None  # No processor needed for Keras
-            except Exception as e:
-                self.logger.log_exception(f"Error loading Keras model: {e}")
-                raise
-                
-        # Fallback to PyTorch BEiT logic
-        self.model_type = "pytorch"
         from transformers import BeitForImageClassification, BeitImageProcessor
 
-        # Load BEiT base architecture — try online first (downloads & caches),
-        # fall back to local cache for offline/frozen mode
-        try:
-            self.logger.log_status("Loading BEiT model architecture (may download on first run)...")
-            model = BeitForImageClassification.from_pretrained(
-                "microsoft/beit-base-patch16-224-pt22k-ft22k",
-                num_labels=len(self.class_names),
-                ignore_mismatched_sizes=True,
-                local_files_only=False,  # Allow download if not cached
-                use_safetensors=True     # Bypass torch.load CVE-2025-32434 check
-            )
-        except Exception as e_online:
-            self.logger.log_status(f"Online download failed ({e_online}), trying local cache...")
-            model = BeitForImageClassification.from_pretrained(
-                "microsoft/beit-base-patch16-224-pt22k-ft22k",
-                num_labels=len(self.class_names),
-                ignore_mismatched_sizes=True,
-                local_files_only=True,
-                use_safetensors=True     # Bypass torch.load CVE-2025-32434 check
-            )
+        # Online-first, local-cache fallback
+        for local_only in (False, True):
+            try:
+                model = BeitForImageClassification.from_pretrained(
+                    "microsoft/beit-base-patch16-224-pt22k-ft22k",
+                    num_labels=len(self.class_names),
+                    ignore_mismatched_sizes=True,
+                    local_files_only=local_only,
+                    use_safetensors=True,
+                )
+                break
+            except Exception as e:
+                if local_only:  # both attempts failed
+                    raise RuntimeError(
+                        f"BEiT architecture download failed: {e}\n"
+                        "Check internet connection or run with a cached copy."
+                    )
 
-        # Load custom trained weights from .pth file
+        # Load weights with safe cross-platform map_location
         try:
-            checkpoint = self.torch.load(model_path, map_location=self.device, weights_only=False)
-            state = checkpoint.get('model_state_dict', checkpoint)
+            checkpoint = torch.load(
+                model_path,
+                map_location=self.device,
+                weights_only=False,
+            )
+            state = checkpoint.get("model_state_dict", checkpoint)
             model.load_state_dict(state, strict=False)
-            self.logger.log_status("Custom classification weights loaded successfully")
+            self.logger.log_status("Custom PyTorch weights loaded successfully")
         except Exception as e:
-            self.logger.log_exception(f"Error loading model weights from {model_path}: {e}")
+            self.logger.log_exception(f"Error loading PyTorch weights from {model_path}: {e}")
             raise
+
         model.to(self.device).eval()
 
-        # Load image processor — same online-first strategy
-        try:
-            processor = BeitImageProcessor.from_pretrained(
-                "microsoft/beit-base-patch16-224-pt22k-ft22k",
-                revision="ae5a6db7d11451821f40ed294ceae691e68203e2"
-            )
-        except Exception:
-            processor = BeitImageProcessor.from_pretrained(
-                "microsoft/beit-base-patch16-224-pt22k-ft22k"
-            )
+        for local_only in (False, True):
+            try:
+                processor = BeitImageProcessor.from_pretrained(
+                    "microsoft/beit-base-patch16-224-pt22k-ft22k",
+                    local_files_only=local_only,
+                )
+                break
+            except Exception as e:
+                if local_only:
+                    raise RuntimeError(f"BEiT processor download failed: {e}")
+
         return model, processor
 
     def make_folders(self):
@@ -174,22 +230,27 @@ class Classify:
         try:
             if getattr(self, 'model_type', 'pytorch') == 'keras':
                 import numpy as np
-                
-                # Dynamically get expected shape from the model
-                # input_shape is typically (None, height, width, channels)
+
+                # Resolve input size safely — avoid AttributeError on unbuilt models
                 try:
-                    target_size = (self.model.input_shape[1], self.model.input_shape[2])
-                except:
-                    target_size = (224, 224) # fallback
-                
-                image = self.tf.keras.preprocessing.image.load_img(image_path, target_size=target_size)
+                    shape = self.model.input_shape  # (None, H, W, C)
+                    target_size = (int(shape[1]), int(shape[2]))
+                    if None in target_size or 0 in target_size:
+                        raise ValueError("Unresolved input shape")
+                except Exception:
+                    target_size = (224, 224)  # safe universal fallback
+
+                image = self.tf.keras.preprocessing.image.load_img(
+                    image_path, target_size=target_size
+                )
                 input_arr = self.tf.keras.preprocessing.image.img_to_array(image)
-                input_arr = np.array([input_arr])  # Convert single image to a batch.
-                
+                # Normalize to [0,1] so float32 inference is stable on all platforms
+                input_arr = input_arr / 255.0
+                input_arr = np.expand_dims(input_arr, axis=0).astype("float32")
+
                 predictions = self.model.predict(input_arr, verbose=0)
                 predicted_class = int(np.argmax(predictions, axis=1)[0])
                 confidence = float(predictions[0][predicted_class])
-                
                 return predicted_class, confidence
             else:
                 image = Image.open(image_path).convert('RGB')
@@ -269,7 +330,7 @@ class Classify:
                 self.save_image(image_path, filename, target_folder)
 
                 stats['processed'] += 1
-                if not uncertain:
+                if not uncertain and class_name.strip() in labels:
                     # Update label text using display mapping
                     display_name = DISPLAY_MAPPING.get(class_name.strip(), class_name.strip())
                     labels[class_name.strip()][0].setText(f"{display_name}: {stats['class_counts'][class_name]}")
@@ -397,12 +458,15 @@ class ClassificationWindow(QtWidgets.QWidget):
 
         self.output_folder = params["output_folder"]
 
-        # Determine which model to select by default (prefer custom Keras models)
+        # Determine which model to select by default (prefer 'best_model', then custom Keras models)
         self.default_model_name = list(self.model_registry.keys())[0]
-        for name in self.model_registry.keys():
-            if name.endswith('.h5') or name.endswith('.keras'):
-                self.default_model_name = name
-                break
+        if "best_model" in self.model_registry:
+            self.default_model_name = "best_model"
+        else:
+            for name in self.model_registry.keys():
+                if name.endswith('.h5') or name.endswith('.keras'):
+                    self.default_model_name = name
+                    break
                 
         self.setToolTip("Use classification models to assign labels to images based on their visual content.")
         self.init_ui()
@@ -414,6 +478,9 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.processor = Classify(config, logger, self.model_dir)
         self.loader_thread = None  # Created on-demand — don't load at startup
         self._model_loaded = False
+
+        # Sync class labels to the auto-selected model AFTER processor is created
+        self._refresh_class_labels_for_model(self.default_model_name)
 
     def on_model_loaded(self, model, processor):
         # Store loaded model and processor
@@ -441,8 +508,11 @@ class ClassificationWindow(QtWidgets.QWidget):
 
         self.drop_down = QtWidgets.QComboBox()
         self.drop_down.addItems(list(self.model_registry.keys()))
-        self.drop_down.setCurrentText(self.default_model_name) # Auto-select the discovered model
-        self.selected_model = self.model_registry[self.drop_down.currentText()]
+        # Block signals during setup to prevent on_select firing before processor is initialized
+        self.drop_down.blockSignals(True)
+        self.drop_down.setCurrentText(self.default_model_name)
+        self.drop_down.blockSignals(False)
+        self.selected_model = self.model_registry.get(self.default_model_name, list(self.model_registry.values())[0])
         self.drop_down.currentTextChanged.connect(self.on_select)
 
         self.remove_checkbox = QtWidgets.QCheckBox(f"Remove {self.input_folder_name} directory")

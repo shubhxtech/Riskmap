@@ -144,13 +144,30 @@ class VideoProcessor(QThread):
                 )
 
             if self.checkpoint_path and os.path.exists(self.checkpoint_path):
-                ckpt  = torch.load(self.checkpoint_path, map_location=device,
-                                   weights_only=False)
-                state = ckpt.get("model_state_dict", ckpt)
-                model.load_state_dict(state, strict=False)
-                self.status_update.emit(
-                    f"Custom checkpoint loaded: {self.checkpoint_path}"
-                )
+                # Try weights_only=True first (PyTorch 2.x+ default security),
+                # fall back to False for older checkpoints
+                ckpt = None
+                for wo in (True, False):
+                    try:
+                        ckpt = torch.load(
+                            self.checkpoint_path,
+                            map_location=device,
+                            weights_only=wo,
+                        )
+                        break
+                    except Exception:
+                        pass
+                if ckpt is not None:
+                    state = ckpt.get("model_state_dict", ckpt)
+                    model.load_state_dict(state, strict=False)
+                    self.status_update.emit(
+                        f"Custom checkpoint loaded: {self.checkpoint_path}"
+                    )
+                else:
+                    self.status_update.emit(
+                        f"⚠ Could not load checkpoint '{self.checkpoint_path}' — "
+                        "using base BEiT weights."
+                    )
             model.to(device).eval()
             self.classifier = model
             self._transform = transforms.Compose([
@@ -171,6 +188,9 @@ class VideoProcessor(QThread):
             tensor  = self._transform(pil_img).unsqueeze(0).to(self._torch_device)
             with self._torch.no_grad():
                 idx = self.classifier(tensor).logits.argmax(1).item()
+            # Safe bounds check — prevents IndexError if model has more labels than class_names
+            if idx < 0 or idx >= len(self.class_names):
+                return "Unknown"
             return self.class_names[idx]
         except Exception as e:
             self.status_update.emit(f"Classification error: {e}")

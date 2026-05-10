@@ -342,8 +342,10 @@ class TrainWorker(QObject):
                 callbacks=[LogCallback(self), early_stop, reduce_lr],
             )
 
-            # ── Save ─────────────────────────────────────────────────────────
-            model.save(self.model_name)
+            # ── Save (include_optimizer=False for cross-platform portability) ─
+            # Saving without the optimizer state makes the file loadable on any
+            # OS / GPU / TF version without hitting the legacy.Adam or dtype crash.
+            model.save(self.model_name, include_optimizer=False)
             self.log(f"Model saved to {self.model_name}")
 
             # ── Save class-names sidecar ─────────────────────────────────────

@@ -551,21 +551,10 @@ class RapidScanWindow(QWidget):
 <style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
 html,body,#map {{ width:100%; height:100%; background:{BG_DEEP}; }}
-.overlay-badge {{
-  position:absolute; top:10px; right:10px; z-index:1000;
-  background:rgba(255,255,255,0.95); backdrop-filter:blur(6px);
-  border:1.5px solid {ACCENT}; border-radius:8px;
-  padding:8px 14px; font-family:monospace; font-size:12px; color:{TXT_HI};
-  box-shadow:0 2px 12px rgba(0,0,0,0.1);
-}}
-.overlay-badge .cnt {{ color:{ACCENT}; font-weight:700; font-size:15px; }}
 </style>
 </head>
 <body>
 <div id="map"></div>
-<div class="overlay-badge">
-  ⚡ RapidScan &nbsp;·&nbsp; Detections: <span class="cnt" id="cnt">0</span>
-</div>
 <script>
 var map = L.map('map',{{zoomControl:false}}).setView([{olat},{olon}],14);
 L.control.zoom({{position:'bottomleft'}}).addTo(map);
@@ -603,7 +592,6 @@ function updateMap(lat,lon,cls,id,color) {{
     markers[id].setPopupContent(popup);
   }} else {{
     cnt++;
-    document.getElementById('cnt').textContent = cnt;
     var m = L.marker([lat,lon],{{icon:icon}}).addTo(map).bindPopup(popup);
     markers[id] = m;
     if(cnt===1) map.flyTo([lat,lon],16,{{duration:1.2}});
@@ -613,7 +601,6 @@ function updateMap(lat,lon,cls,id,color) {{
 function clearMarkers() {{
   Object.values(markers).forEach(function(m){{ map.removeLayer(m); }});
   markers={{}};cnt=0;
-  document.getElementById('cnt').textContent=0;
 }}
 </script>
 </body>
