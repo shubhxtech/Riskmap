@@ -12,6 +12,10 @@
 #    Then restart the app. TensorFlow will auto-detect the GPU.
 #    PyTorch CUDA: replace the torch/torchvision lines below with:
 #      pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+#
+#  FOR 360 VIDEO PROCESSING:
+#    Install ffmpeg:
+#      conda install -c conda-forge ffmpeg -y
 # ============================================================
 
 # ── GUI ─────────────────────────────────────────────────────
@@ -61,6 +65,8 @@ pytz>=2023.3
 tqdm>=4.65.0
 tenacity>=8.2.0
 beautifulsoup4>=4.12.0
+chardet
+openpyxl
 
 # ── Build tool ───────────────────────────────────────────────
 pyinstaller>=6.3.0

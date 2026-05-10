@@ -1,5 +1,6 @@
 # RiskMap - macOS (Apple Silicon) Requirements
 # Use with: pip install -r requirements_mac.txt
+# Requires: brew install ffmpeg
 # Python 3.10 required
 
 # --- GUI Framework ---
@@ -19,6 +20,7 @@ torch
 torchvision
 transformers
 scikit-learn
+tensorflow-hub
 
 # --- Geospatial ---
 cartopy
@@ -44,3 +46,5 @@ pymdown-extensions
 pyinstaller
 pandas
 scipy
+chardet
+openpyxl
