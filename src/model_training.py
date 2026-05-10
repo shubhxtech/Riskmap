@@ -82,6 +82,9 @@ class DatasetGuidelineDialog(QDialog):
 
 
 class Trainer(QWidget):
+    # Emitted when a model finishes training: (absolute_model_path, class_names_list)
+    model_trained = pyqtSignal(str, list)
+
     def __init__(self, config=None, logger=None):
         super().__init__()
         self.logger = logger if logger else Logger()
@@ -196,8 +199,17 @@ class Trainer(QWidget):
 
         # --- Row 2: Model & Name ---
         self.model_selector = QComboBox()
-        self.model_selector.addItems(["ResNet50", "MobileNetV2", "InceptionV3"])
-        self.model_selector.currentIndexChanged.connect(self._do_update_viz)  # Immediate update for dropdown
+        self.model_selector.addItems([
+            "ResNet50",
+            "MobileNetV2",
+            "EfficientNetV2S",   # ← recommended for Apple Silicon (fastest)
+            "InceptionV3",
+        ])
+        # Default to EfficientNetV2S on Apple Silicon for best out-of-box speed
+        import sys, platform
+        if sys.platform == "darwin" and platform.machine() == "arm64":
+            self.model_selector.setCurrentText("EfficientNetV2S")
+        self.model_selector.currentIndexChanged.connect(self._do_update_viz)
         self._add_param_row(form_layout, 1, "Base Model:", self.model_selector)
         
         self.model_name_input = QLineEdit("my_model.h5")
@@ -207,7 +219,7 @@ class Trainer(QWidget):
         self.epochs_input = QLineEdit("10")
         self._add_param_row(form_layout, 3, "Epochs:", self.epochs_input)
         
-        self.batch_size_input = QLineEdit("32")
+        self.batch_size_input = QLineEdit("64")
         self._add_param_row(form_layout, 4, "Batch Size:", self.batch_size_input)
 
         self.lr_input = QLineEdit("0.001")
@@ -473,7 +485,8 @@ class Trainer(QWidget):
             
             self.worker.finished_signal.connect(self.thread.quit)
             self.worker.finished_signal.connect(self.worker.deleteLater)
-            # self.worker.plot_ready_signal.connect(self.open_plot_image) # No longer needed as we have live plot
+            # Forward the model_trained signal up to any connected slot (e.g. SplitProcessingWindow)
+            self.worker.model_trained_signal.connect(self.model_trained)
             self.thread.finished.connect(self.thread.deleteLater)
             
             self.thread.start()
@@ -536,7 +549,7 @@ class Trainer(QWidget):
                 meta['nodes'] = [] 
                 meta['color'] = QColor(200, 200, 200)
                 
-                if "resnet" in name.lower() or "mobilenet" in name.lower() or "inception" in name.lower():
+                if any(x in name.lower() for x in ["resnet", "mobilenet", "inception", "efficientnet"]):
                     meta['type'] = "Base"
                     meta['label'] = base_model_name
                     meta['is_block'] = True
@@ -783,31 +796,16 @@ class Trainer(QWidget):
     def _do_update_viz(self):
         """Actually generate and display model architecture diagram"""
         try:
-            # Lazy load TensorFlow when visualization is needed
-            self._ensure_tensorflow_loaded()
-            
             base_model_name = self.model_selector.currentText()
             
-            # Read image size safely from UI
-            try:
-                h = int(self.img_height_input.text())
-                w = int(self.img_width_input.text())
-            except:
-                h, w = 224, 224 # Fallback defaults
-                
-            input_shape = (h, w, 3)
+            # Use mock layers to draw the UI instantly without importing TensorFlow or building real graphs
+            # This completely avoids the keras module deadlock on the UI thread
+            class MockLayer:
+                def __init__(self, name, units=None):
+                    self.name = name
+                    self.units = units
             
-            if base_model_name == "ResNet50":
-                base = self._keras.applications.ResNet50(include_top=False, weights=None, input_shape=input_shape)
-            elif base_model_name == "MobileNetV2":
-                base = self._keras.applications.MobileNetV2(include_top=False, weights=None, input_shape=input_shape)
-            elif base_model_name == "InceptionV3":
-                base = self._keras.applications.InceptionV3(include_top=False, weights=None, input_shape=input_shape)
-            else:
-                base = self._keras.applications.ResNet50(include_top=False, weights=None, input_shape=input_shape)
-
-            # Revert to Sequential for cleaner Grouped Viz
-            layers_list = [base, self.Flatten()]
+            layers_list = [MockLayer(base_model_name), MockLayer("Flatten")]
             
             # --- Parse Custom Layers ---
             custom_layers_str = self.layer_config_input.text()
@@ -815,31 +813,39 @@ class Trainer(QWidget):
             
             if custom_layers_str:
                 try:
-                    dims = [int(x.strip()) for x in custom_layers_str.split(',') if x.strip()]
-                    for d in dims:
-                        layers_list.append(self.Dense(d))
-                    if dims:
-                        custom_layers_desc = str(dims)
+                    custom_layers = [int(x.strip()) for x in custom_layers_str.split(',') if x.strip()]
+                    for size in custom_layers:
+                        layers_list.append(MockLayer("Dense", units=size))
+                        layers_list.append(MockLayer("Dropout"))
+                    custom_layers_desc = str(custom_layers)
                 except ValueError:
                     self.logger.log_status("Invalid Custom Layer input for viz.")
             
-            # Add final classification head
-            layers_list.append(self.Dense(10))
+            # Add output layer
+            # Get num classes dynamically or assume 24
+            num_classes = 24
+            try:
+                from pathlib import Path
+                input_dir = Path(self.path_input.text())
+                if input_dir.exists() and input_dir.is_dir():
+                    classes = [d for d in input_dir.iterdir() if d.is_dir() and not d.name.startswith('.')]
+                    if classes:
+                        num_classes = len(classes)
+            except Exception:
+                pass
+            layers_list.append(MockLayer("Dense", units=num_classes))
             
-            model = self.Sequential(layers_list)
+            # Calculate total params (mock estimation for UI)
+            total_params = "≈ 25M+"
             
             # --- Update Info Label ---
-            total_params = model.count_params()
-            layer_count = len(base.layers) # Base model layers
-            
-            # Compact info text
-            info_text = f"{base_model_name} • {layer_count} layers • {custom_layers_desc} custom • {total_params:,} params"
+            info_text = f"Base: {base_model_name} • Custom: {custom_layers_desc} • Params: {total_params}"
             self.model_info_label.setText(info_text)
             
-            # Use Custom Horizontal Painter (Robust & Research Paper Style)
             self.draw_horizontal_model_viz(layers_list, base_model_name)
-
+            
         except Exception as e:
+            self.logger.log_exception(f"Error generating model viz: {e}")
             self.logger.log_exception(f"Error generating model viz: {e}")
             self.model_viz_label.setText("Visualization failed.")
             

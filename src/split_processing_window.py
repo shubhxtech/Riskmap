@@ -51,3 +51,7 @@ class SplitProcessingWindow(QWidget):
 
     def on_add_model_requested(self):
         self.add_model_requested.emit()
+
+    def add_trained_model(self, model_path: str, class_names: list):
+        """Forward signal from Trainer tab → ClassificationWindow dropdown."""
+        self.classification_window.add_trained_model(model_path, class_names)

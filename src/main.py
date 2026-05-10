@@ -162,14 +162,18 @@ class MainApp(QMainWindow):
         from unified_processing import UnifiedProcessingWindow
         self.add_tab(UnifiedProcessingWindow, "Image Processing")
         
-        self.add_tab(Trainer, name_stats["name_of_training_window"])
+        self.trainer_tab = self.add_tab(Trainer, name_stats["name_of_training_window"])
         from split_processing_window import SplitProcessingWindow
         # Add Unified Split Tab
         split_tab = self.add_tab(SplitProcessingWindow, "Analyze & Filter")
         split_tab.add_model_requested.connect(self.add_model_form)
-        
+
+        # ── Wire: after training, auto-add model to Analyze & Filter tab ──
+        self.trainer_tab.model_trained.connect(split_tab.add_trained_model)
+
         # ── Risk Assessment: real-time video detection + seismic risk ──
         self.add_tab(RapidScanWindow, "Risk Assessment")
+
 
         # ── 3D Reconstruction: NodeODM / WebODM drone photogrammetry ──
         # HIDDEN: keeping code intact but hiding the tab from the UI

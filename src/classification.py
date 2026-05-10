@@ -51,10 +51,8 @@ DISPLAY_MAPPING = {
 
 class Classify:
     def __init__(self, config: Config, logger: Logger, model_dir, num_classes=24, device=None):
-        # Lazy import torch - only loads when Classification tab is opened
-        import torch
-        self.torch = torch  # Store reference for use in methods
-        
+        self.torch = None  # Loaded lazily later
+        self._user_device = device
         self.config = config
         self.logger = logger
         params = self.config.get_classification_data()
@@ -75,11 +73,38 @@ class Classify:
         self.image_extensions = self.config.get_img_ext()
         self.image_extensions = tuple(self.image_extensions.split(','))
 
-        self.device = device if device else self.torch.device("cuda" if self.torch.cuda.is_available() else "cpu")
-        self.logger.log_status(f"Using device: {self.device}")
+        self.device = None  # Will be set in instantiate_model
 
     def instantiate_model(self):
-        model_path = self.model_dir
+        import torch
+        self.torch = torch
+        
+        # Setup device
+        if self._user_device:
+            self.device = self._user_device
+        else:
+            self.device = self.torch.device("cuda" if self.torch.cuda.is_available() else "mps" if self.torch.backends.mps.is_available() else "cpu")
+        self.logger.log_status(f"Using device: {self.device}")
+
+        model_path = str(self.model_dir)
+        
+        # Check if model is Keras/TensorFlow based on extension
+        if model_path.endswith('.keras') or model_path.endswith('.h5'):
+            self.model_type = "keras"
+            self.logger.log_status(f"Loading Keras model from {model_path}...")
+            import tensorflow as tf
+            self.tf = tf
+            try:
+                # Load Keras model
+                model = tf.keras.models.load_model(model_path)
+                self.logger.log_status("Keras classification weights loaded successfully")
+                return model, None  # No processor needed for Keras
+            except Exception as e:
+                self.logger.log_exception(f"Error loading Keras model: {e}")
+                raise
+                
+        # Fallback to PyTorch BEiT logic
+        self.model_type = "pytorch"
         from transformers import BeitForImageClassification, BeitImageProcessor
 
         # Load BEiT base architecture — try online first (downloads & caches),
@@ -147,17 +172,37 @@ class Classify:
 
     def predict_image(self, image_path):
         try:
-            image = Image.open(image_path).convert('RGB')
-            inputs = self.processor(images=image, return_tensors="pt")
-            inputs = {k: v.to(self.device) for k, v in inputs.items()}
+            if getattr(self, 'model_type', 'pytorch') == 'keras':
+                import numpy as np
+                
+                # Dynamically get expected shape from the model
+                # input_shape is typically (None, height, width, channels)
+                try:
+                    target_size = (self.model.input_shape[1], self.model.input_shape[2])
+                except:
+                    target_size = (224, 224) # fallback
+                
+                image = self.tf.keras.preprocessing.image.load_img(image_path, target_size=target_size)
+                input_arr = self.tf.keras.preprocessing.image.img_to_array(image)
+                input_arr = np.array([input_arr])  # Convert single image to a batch.
+                
+                predictions = self.model.predict(input_arr, verbose=0)
+                predicted_class = int(np.argmax(predictions, axis=1)[0])
+                confidence = float(predictions[0][predicted_class])
+                
+                return predicted_class, confidence
+            else:
+                image = Image.open(image_path).convert('RGB')
+                inputs = self.processor(images=image, return_tensors="pt")
+                inputs = {k: v.to(self.device) for k, v in inputs.items()}
 
-            with self.torch.no_grad():
-                outputs = self.model(**inputs)
-                probabilities = self.torch.nn.functional.softmax(outputs.logits, dim=1)
-                predicted_class = self.torch.argmax(probabilities, dim=1).item()
-                confidence = probabilities[0][predicted_class].item()
+                with self.torch.no_grad():
+                    outputs = self.model(**inputs)
+                    probabilities = self.torch.nn.functional.softmax(outputs.logits, dim=1)
+                    predicted_class = self.torch.argmax(probabilities, dim=1).item()
+                    confidence = probabilities[0][predicted_class].item()
 
-            return predicted_class, confidence
+                return predicted_class, confidence
         except Exception as e:
             self.logger.log_exception(f"Error processing image {image_path}: {str(e)}")
             return None, None
@@ -204,7 +249,12 @@ class Classify:
                     stats['failed'] += 1
                     continue
 
-                class_name = self.class_names[predicted_class]
+                # Safe bounds check for class names (prevents IndexError if PyTorch returns 21k classes)
+                if predicted_class >= len(self.class_names):
+                    class_name = self.class_names[0] if len(self.class_names) > 0 else "Unknown"
+                else:
+                    class_name = self.class_names[predicted_class]
+                    
                 uncertain = False
                 if confidence >= self.confidence_threshold:
                     target_folder = os.path.join(self.output_folder, class_name)
@@ -226,8 +276,11 @@ class Classify:
                     
                 progress_callback(((stats['processed'] + stats['failed'])/ stats['total']) * 100)
 
-                self.logger.log_status("image_path.name: ", image_path.name)
-                lat, lon = image_path.name.split(' ')[3:5]
+                self.logger.log_status(f"image_path.name: {image_path.name}")
+                try:
+                    lat, lon = image_path.name.split(' ')[3:5]
+                except ValueError:
+                    lat, lon = "0.0", "0.0"
                 locfile.write(f"{lat}:{lon}:{class_name}\n")
 
         self.logger.log_status("Classification Complete:\n"+ f"Processed: {stats['processed']}, Uncertain: {stats['uncertain']}, Failed: {stats['failed']}")
@@ -316,17 +369,46 @@ class ClassificationWindow(QtWidgets.QWidget):
         
         params = self.config.get_classification_data()
         self.model_path = params["model_path"]
-        self.model_ext = params["model_ext"]
+        self.model_ext = params.get("model_ext", ".pth")
+        
+        # Build an internal registry of model Name -> Absolute Path
+        self.model_registry = {}
+        
+        # 1. Register default models from config
         self.available_models = params["available_models"].split(',')
+        for am in self.available_models:
+            self.model_registry[am] = resolve_path(os.path.join(self.model_path, am + self.model_ext))
+            
+        # 2. Auto-discover trained custom Keras models in current directory
+        try:
+            cwd = Path.cwd()
+            for ext in ('*.h5', '*.keras'):
+                for model_file in cwd.glob(ext):
+                    # Only register if it has a classes sidecar (e.g. my_model.h5.classes.json)
+                    sidecar = model_file.with_name(model_file.name + '.classes.json')
+                    if sidecar.exists():
+                        name = model_file.name
+                        self.model_registry[name] = str(model_file.resolve())
+        except Exception as e:
+            self.logger.log_exception(f"Error auto-discovering models: {e}")
+
         self.input_folder = params["parent_folder"]
         self.input_folder_name = Path(self.input_folder).name
 
         self.output_folder = params["output_folder"]
 
+        # Determine which model to select by default (prefer custom Keras models)
+        self.default_model_name = list(self.model_registry.keys())[0]
+        for name in self.model_registry.keys():
+            if name.endswith('.h5') or name.endswith('.keras'):
+                self.default_model_name = name
+                break
+                
         self.setToolTip("Use classification models to assign labels to images based on their visual content.")
         self.init_ui()
         self.process_button.setEnabled(False)
-        self.model_dir = resolve_path(os.path.join(self.model_path,self.available_models[0] + self.model_ext))
+        
+        self.model_dir = self.model_registry[self.default_model_name]
         self.logger.log_status(f"Loaded in {self.model_dir}")
 
         self.processor = Classify(config, logger, self.model_dir)
@@ -358,9 +440,9 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.timer_label = QtWidgets.QLabel("Elapsed Time: 0.00 sec")
 
         self.drop_down = QtWidgets.QComboBox()
-        self.drop_down.addItems(self.available_models)
-        self.drop_down.setCurrentIndex(0)
-        self.selected_model = self.model_path + self.available_models[0]
+        self.drop_down.addItems(list(self.model_registry.keys()))
+        self.drop_down.setCurrentText(self.default_model_name) # Auto-select the discovered model
+        self.selected_model = self.model_registry[self.drop_down.currentText()]
         self.drop_down.currentTextChanged.connect(self.on_select)
 
         self.remove_checkbox = QtWidgets.QCheckBox(f"Remove {self.input_folder_name} directory")
@@ -422,6 +504,7 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.text_output.setReadOnly(True)
         layout.addWidget(self.text_output)
         self.model_status_label = QLabel("Model not loaded — click '↯ Load Model' or 'Classify All Images' to begin.")
+        self.model_status_label.setWordWrap(True)
         layout.addWidget(self.model_status_label)
 
     def add_class_labels(self, model_name: str):
@@ -439,7 +522,131 @@ class ClassificationWindow(QtWidgets.QWidget):
         return label_container
 
     def on_select(self, text):
-        self.selected_model = self.model_path + text + self.model_ext
+        """Called whenever the model dropdown changes — update path AND class labels."""
+        if text in self.model_registry:
+            self.selected_model = self.model_registry[text]
+        else:
+            self.selected_model = self.model_path + text + self.model_ext # Fallback
+            
+        # VERY IMPORTANT: update processor and internal dir!
+        self.model_dir = self.selected_model
+        if hasattr(self, 'processor'):
+            self.processor.model_dir = self.selected_model
+            
+        # Try to refresh labels: first check sidecar, then config
+        self._refresh_class_labels_for_model(text)
+        # Mark model as needing reload
+        self._model_loaded = False
+        self.model_status_label.setText(
+            f"Model changed to '{text}' — click '\u21af Load Model' to load."
+        )
+
+    def _refresh_class_labels_for_model(self, model_name: str):
+        """Update the class label grid to match the selected model."""
+        import json, os as _os
+        
+        # 1. Check for local sidecar (e.g. my_model.h5 -> my_model.h5.classes.json)
+        sidecar_path = None
+        if model_name in self.model_registry:
+            model_path = self.model_registry[model_name]
+            sidecar_path = model_path + '.classes.json'
+        else:
+            sidecar_path = _os.path.join(self.model_path, model_name + '.classes.json')
+        if _os.path.exists(sidecar_path):
+            try:
+                with open(sidecar_path) as f:
+                    data = json.load(f)
+                self._set_class_labels(data["class_names"])
+                return
+            except Exception:
+                pass
+
+        # 2. Fallback: config model_data (for models added via 'Add Model' dialog)
+        try:
+            model_data = self.config.get_model_data()
+            if model_name in model_data:
+                self._set_class_labels(list(model_data[model_name]['classes']))
+                return
+        except Exception:
+            pass
+
+        # 3. Final fallback: use the default class_names from config
+        try:
+            default = self.config.get_classification_data()["class_names"].split(',')
+            self._set_class_labels([n.strip() for n in default])
+        except Exception:
+            pass
+
+    def _set_class_labels(self, class_names: list):
+        """Rebuild the class-count grid in place."""
+        if hasattr(self, 'processor'):
+            self.processor.class_names = class_names
+
+        # Find and clear existing label_container
+        layout = self.layout()
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item and item.widget() and isinstance(item.widget(), QtWidgets.QWidget):
+                w = item.widget()
+                # Identify by having a QGridLayout child
+                if isinstance(w.layout(), QtWidgets.QGridLayout):
+                    layout.removeWidget(w)
+                    w.deleteLater()
+                    break
+
+        label_container = QtWidgets.QWidget()
+        grid_container = QtWidgets.QGridLayout(label_container)
+        self.labels = {}
+        for i, name in enumerate(class_names):
+            clean_name = name.strip()
+            display_name = DISPLAY_MAPPING.get(clean_name, clean_name)
+            label = QtWidgets.QLabel(f"{display_name} : 0")
+            self.labels[clean_name] = (label, 0)
+            row = i if i < 12 else i - 12
+            col = 0 if i < 12 else 1
+            grid_container.addWidget(label, row, col)
+        # Insert before the text_output widget
+        for i in range(layout.count()):
+            item = layout.itemAt(i)
+            if item and item.widget() is self.text_output:
+                layout.insertWidget(i, label_container)
+                return
+        layout.addWidget(label_container)
+
+    def add_trained_model(self, model_path: str, class_names: list):
+        """Called automatically after training completes.
+        Adds the freshly trained model to the dropdown and refreshes the class grid.
+        """
+        import os as _os
+        model_name = _os.path.basename(model_path)
+
+        # Register it internally with absolute path
+        self.model_registry[model_name] = model_path
+
+        # Add to dropdown if not already present
+        existing = [self.drop_down.itemText(i) for i in range(self.drop_down.count())]
+        if model_name not in existing:
+            self.drop_down.blockSignals(True)
+            self.drop_down.addItem(model_name)
+            self.drop_down.blockSignals(False)
+
+        # Switch to the new model
+        self.drop_down.blockSignals(True)
+        self.drop_down.setCurrentText(model_name)
+        self.drop_down.blockSignals(False)
+
+        # Update the internal path to the full absolute path
+        self.selected_model = model_path
+
+        # Refresh class labels immediately
+        self._set_class_labels(class_names)
+
+        # Mark model as needing reload
+        self._model_loaded = False
+        self.model_status_label.setText(
+            f"\u2705 Newly trained '{model_name}' added ({len(class_names)} classes). "
+            f"Click '\u21af Load Model' to load."
+        )
 
     def browse_output_folder(self):
         output_folder = QtWidgets.QFileDialog.getExistingDirectory(self, "Select Output Folder")
@@ -465,7 +672,7 @@ class ClassificationWindow(QtWidgets.QWidget):
             return
         self.model_status_label.setText("Loading model… this may take a minute.")
         self.load_model_btn.setEnabled(False)
-        self.loader_thread = ModelLoaderThread(self.processor, self.model_dir)
+        self.loader_thread = ModelLoaderThread(self.processor, self.selected_model)
         self.loader_thread.model_ready.connect(self.on_model_loaded)
         self.loader_thread.model_failed.connect(self.on_model_failed)
         self.loader_thread.start()

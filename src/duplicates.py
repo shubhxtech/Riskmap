@@ -390,6 +390,7 @@ class DuplicatesWindow(QWidget):
 
         layout.addLayout(button_layout)
         self.status_label = QLabel("Loading model...")
+        self.status_label.setWordWrap(True)
         layout.addWidget(self.status_label)
         self.setLayout(layout)
 
