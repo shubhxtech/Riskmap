@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:%%BG_DEEP%%; overflow:hidden;
+    font-family:%%FONT_MONO%%; color:%%TXT_MID%%;
+  }
+  #overlay {
+    position:fixed; inset:0; background:%%BG_DEEP%%;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    z-index:100; transition:opacity .5s;
+  }
+  #overlay.hidden { opacity:0; pointer-events:none; }
+  .spinner {
+    width:38px; height:38px; border:3px solid rgba(255,255,255,.08);
+    border-top-color:%%ACCENT%%;
+    border-radius:50%; animation:spin .8s linear infinite; margin-bottom:14px;
+  }
+  @keyframes spin { to{ transform:rotate(360deg); } }
+  #load-msg { font-size:11px; color:%%TXT_LOW%%; letter-spacing:.5px; }
+  #load-bar-wrap {
+    width:220px; height:3px; background:rgba(255,255,255,.08);
+    border-radius:2px; margin-top:10px; overflow:hidden;
+  }
+  #load-bar {
+    height:100%; width:0%; background:%%ACCENT%%;
+    border-radius:2px; transition:width .2s;
+  }
+  #toolbar {
+    position:fixed; top:0; left:0; right:0;
+    background:rgba(14,20,28,.82); backdrop-filter:blur(10px);
+    border-bottom:1px solid rgba(255,255,255,.06);
+    padding:5px 10px; display:flex; gap:5px; align-items:center;
+    z-index:50; height:36px;
+  }
+  .tbtn {
+    background:rgba(255,255,255,.06);
+    color:#b8ccdc; border:1px solid rgba(255,255,255,.1);
+    border-radius:5px; padding:3px 9px; font-size:10.5px;
+    cursor:pointer; font-family:%%FONT_MONO%%; transition:all .15s;
+    white-space:nowrap;
+  }
+  .tbtn:hover { background:%%ACCENT%%; border-color:%%ACCENT%%; color:#fff; }
+  .tbtn.active { background:%%ACCENT%%22; border-color:%%ACCENT%%88; color:%%ACCENT%%; }
+  #hint {
+    margin-left:auto; font-size:10px; color:%%TXT_LOW%%;
+    letter-spacing:.2px; white-space:nowrap;
+  }
+  #errbox {
+    display:none; position:fixed; inset:0;
+    background:%%BG_DEEP%%; align-items:center; justify-content:center;
+    z-index:200; flex-direction:column; gap:14px; padding:30px;
+  }
+  #errbox p {
+    color:%%TXT_LOW%%; font-size:11px; text-align:center;
+    max-width:360px; line-height:1.7;
+  }
+  canvas { display:block; }
+</style>
+</head>
+<body>
+<div id="overlay">
+  <div class="spinner"></div>
+  <div id="load-msg">Initialising 3D viewer…</div>
+  <div id="load-bar-wrap"><div id="load-bar"></div></div>
+</div>
+<div id="toolbar">
+  <button class="tbtn" onclick="resetCamera()">⤢ Reset</button>
+  <button class="tbtn" id="btnWire" onclick="toggleWireframe()">⬡ Wire</button>
+  <button class="tbtn" id="btnAxes" onclick="toggleAxes()">✛ Axes</button>
+  <button class="tbtn" id="btnShade" onclick="toggleShading()">◑ Shade</button>
+  <button class="tbtn" id="animBtn" onclick="toggleAnim()" style="display:none">▶ Anim</button>
+  <span id="hint">drag · scroll · right-drag</span>
+</div>
+<div id="errbox">
+  <div class="spinner"></div>
+  <p>3D viewer needs an internet connection to load Three.js.<br>
+     Use <b>Open 3D in Browser</b> instead, or check your network.</p>
+</div>
+
+<!-- Three.js r128 (UMD build, no ES modules — works in QtWebEngine) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
+        crossorigin="anonymous"
+        onerror="showErr();">
+</script>
+<!-- GLTFLoader for r128 -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"
+        crossorigin="anonymous" onerror="showErr();">
+</script>
+<!-- DRACOLoader for r128 — MUST be present or Draco-compressed ODM GLBs fail -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"
+        crossorigin="anonymous" onerror="showErr();">
+</script>
+<!-- OrbitControls for r128 -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
+        crossorigin="anonymous">
+</script>
+
+<script>
+function showErr() {
+  document.getElementById('errbox').style.display = 'flex';
+  document.getElementById('overlay').classList.add('hidden');
+}
+
+// Guard: all required libs must be present
+window.addEventListener('load', function() {
+  if (typeof THREE === 'undefined' || !THREE.GLTFLoader || !THREE.DRACOLoader) {
+    showErr(); return;
+  }
+  initViewer();
+});
+
+function initViewer() {
+// ── Renderer ───────────────────────────────────────────────────────────────
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+document.body.appendChild(renderer.domElement);
+
+// ── Scene ──────────────────────────────────────────────────────────────────
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('%%BG_DEEP%%');
+scene.fog = new THREE.FogExp2('%%BG_DEEP%%', 0.0015);
+
+const gridHelper = new THREE.GridHelper(500, 50, 0x1e2a38, 0x161f2a);
+scene.add(gridHelper);
+
+const axesHelper = new THREE.AxesHelper(5);
+axesHelper.visible = false;
+scene.add(axesHelper);
+
+// ── Lights ──────────────────────────────────────────────────────────────────
+const ambient = new THREE.AmbientLight(0xffffff, 0.55);
+scene.add(ambient);
+
+const sun = new THREE.DirectionalLight(0xfff4e0, 1.6);
+sun.position.set(8, 15, 10);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.far = 5000;
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0x4a80c0, 0.35);
+fill.position.set(-6, 4, -8);
+scene.add(fill);
+
+// ── Camera ─────────────────────────────────────────────────────────────────
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 0.001, 50000);
+camera.position.set(0, 10, 20);
+
+// ── Controls ───────────────────────────────────────────────────────────────
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping  = true;
+controls.dampingFactor  = 0.07;
+controls.screenSpacePanning = true;
+controls.minDistance    = 0.01;
+controls.maxDistance    = 20000;
+controls.zoomSpeed      = 1.2;
+
+// ── State ──────────────────────────────────────────────────────────────────
+let model = null, mixer = null, clock = new THREE.Clock();
+let wireMode = false, flatShade = false, animPaused = false;
+let savedCamPos = null, savedTarget = null;
+
+// ── DRACOLoader — pointed at jsDelivr-hosted decoder WASM ─────────────────
+const dracoLoader = new THREE.DRACOLoader();
+dracoLoader.setDecoderPath(
+  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/gltf/'
+);
+dracoLoader.setDecoderConfig({ type: 'js' });
+
+// ── GLTFLoader ─────────────────────────────────────────────────────────────
+const loader = new THREE.GLTFLoader();
+loader.setDRACOLoader(dracoLoader);
+
+loader.load(
+  '%%GLB_URL%%',
+  (gltf) => {
+    model = gltf.scene;
+    model.traverse(child => {
+      if (child.isMesh) {
+        child.castShadow    = true;
+        child.receiveShadow = true;
+        if (child.material) child.material.side = THREE.DoubleSide;
+      }
+    });
+    scene.add(model);
+
+    // Fit camera
+    const box    = new THREE.Box3().setFromObject(model);
+    const size   = new THREE.Vector3();
+    const center = new THREE.Vector3();
+    box.getSize(size);
+    box.getCenter(center);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov    = camera.fov * (Math.PI / 180);
+    let dist     = (maxDim / 2) / Math.tan(fov / 2) * 1.6;
+
+    camera.near = dist * 0.0005;
+    camera.far  = dist * 200;
+    camera.updateProjectionMatrix();
+    camera.position.set(center.x + dist*.6, center.y + dist*.4, center.z + dist);
+
+    controls.target.copy(center);
+    controls.update();
+
+    // Reposition grid floor
+    gridHelper.position.y = box.min.y - 0.01;
+    gridHelper.scale.setScalar(maxDim * 0.8);
+
+    savedCamPos = camera.position.clone();
+    savedTarget = controls.target.clone();
+
+    if (gltf.animations && gltf.animations.length) {
+      mixer = new THREE.AnimationMixer(model);
+      gltf.animations.forEach(clip => mixer.clipAction(clip).play());
+      document.getElementById('animBtn').style.display = 'inline-block';
+    }
+
+    dracoLoader.dispose();
+    document.getElementById('overlay').classList.add('hidden');
+  },
+  (xhr) => {
+    if (xhr.total > 0) {
+      const pct = Math.round(xhr.loaded / xhr.total * 100);
+      document.getElementById('load-msg').textContent = 'Loading… ' + pct + '%';
+      document.getElementById('load-bar').style.width = pct + '%';
+    }
+  },
+  (err) => {
+    console.error('GLTFLoader error:', err);
+    document.getElementById('load-msg').textContent = 'Load failed: ' + (err.message || err);
+    setTimeout(showErr, 900);
+  }
+);
+
+// ── Toolbar actions ────────────────────────────────────────────────────────
+function resetCamera() {
+  if (!savedCamPos) return;
+  camera.position.copy(savedCamPos);
+  controls.target.copy(savedTarget);
+  controls.update();
+}
+
+function toggleWireframe() {
+  wireMode = !wireMode;
+  document.getElementById('btnWire').classList.toggle('active', wireMode);
+  if (model) model.traverse(c => {
+    if (c.isMesh && c.material) c.material.wireframe = wireMode;
+  });
+}
+
+function toggleAxes() {
+  axesHelper.visible = !axesHelper.visible;
+  document.getElementById('btnAxes').classList.toggle('active', axesHelper.visible);
+}
+
+function toggleShading() {
+  flatShade = !flatShade;
+  document.getElementById('btnShade').classList.toggle('active', flatShade);
+  if (model) model.traverse(c => {
+    if (c.isMesh && c.material) {
+      c.material.flatShading = flatShade;
+      c.material.needsUpdate = true;
+    }
+  });
+}
+
+function toggleAnim() {
+  animPaused = !animPaused;
+  document.getElementById('animBtn').textContent = animPaused ? '▶ Play' : '⏸ Pause';
+}
+
+// ── Render loop ────────────────────────────────────────────────────────────
+(function animate() {
+  requestAnimationFrame(animate);
+  const dt = clock.getDelta();
+  if (mixer && !animPaused) mixer.update(dt);
+  controls.update();
+  renderer.render(scene, camera);
+})();
+
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+} // end initViewer
+
+</script>
+</body>
+</html>

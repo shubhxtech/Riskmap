@@ -7,38 +7,22 @@ via its REST API. No pyodm dependency — uses only requests + PyQt5.
 NodeODM setup (one-time, run in terminal):
     docker run -p 3000:3000 opendronemap/nodeodm
 
-Workflow:
-  1. Connect  → GET /info           verify node is alive
-  2. Upload   → POST /task/new      multipart upload of all drone images
-  3. Process  → poll GET /task/{id}/info  until status = completed/failed
-  4. Download → GET /task/{id}/download/all.zip  → extract to output folder
-  5. View     → open orthophoto / point cloud / 3D model in embedded viewer
-
-Changes vs original:
-  - Inline HTML generation for viewers (no external template files needed)
-  - 3D viewer uses Three.js + GLTFLoader from CDN with graceful fallback
-  - HTTP server has CORS headers so QtWebEngine & browsers can load assets
-  - UploadWorker closes file handles reliably via finally block
-  - PollingWorker has a configurable max-iteration safety guard
-  - Refined UI: card-based stat strip, cleaner section headers, better spacing
-  - "Open in Browser" button always enabled after a GLB is located
-  - Results folder fallback chain is more robust
+Architecture (refactored):
+  - REST client  → services/nodeodm_client.py
+  - QThread workers → workers/upload_worker.py, polling_worker.py, download_worker.py
+  - HTML viewers → templates/orthophoto_viewer.html, 3d_viewer.html
+  - This file   → UI layout, signal wiring, and viewer coordination
 """
 
 import os
-import json
-import time
-import zipfile
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 import threading
 import socket
 import mimetypes
-from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 from functools import partial
-
-import requests
 
 from PyQt5.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -55,11 +39,18 @@ from PyQt5.QtWebEngineWidgets import (
 )
 from PyQt5.QtWidgets import QApplication
 
-from ._constants import (
+from .constants import (
     BG_DEEP, BG_PANEL, BG_CARD, BORDER,
     ACCENT, ACCENT_H, ACCENT2, ACCENT3,
     TXT_HI, TXT_MID, TXT_LOW, FONT_MONO,
 )
+
+# ── Extracted modules ─────────────────────────────────────────────────────────
+from services.nodeodm_client import NodeODMClient
+from workers.upload_worker import UploadWorker
+from workers.polling_worker import PollingWorker
+from workers.download_worker import DownloadWorker
+from templates import render_template
 
 # Ensure modern MIME types for web preview assets
 mimetypes.add_type("model/gltf-binary", ".glb")
@@ -129,686 +120,37 @@ class _CORSHandler(SimpleHTTPRequestHandler):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  Inline HTML generators (no external template files needed)
+#  HTML generators — load from external templates
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _build_orthophoto_html(img_url: str, accent: str, bg_deep: str, bg_panel: str,
                             txt_low: str, font_mono: str) -> str:
-    """Return a self-contained pan/zoom orthophoto viewer."""
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{
-    background: {bg_deep};
-    display: flex; flex-direction: column;
-    height: 100vh; overflow: hidden;
-    font-family: {font_mono};
-  }}
-  #toolbar {{
-    background: {bg_panel};
-    border-bottom: 1px solid rgba(255,255,255,.08);
-    padding: 6px 10px;
-    display: flex; gap: 8px; align-items: center;
-    flex-shrink: 0;
-  }}
-  #toolbar span {{
-    color: {txt_low};
-    font-size: 10px;
-    margin-left: auto;
-  }}
-  button {{
-    background: rgba(255,255,255,.07);
-    color: #e0eaf4;
-    border: 1px solid rgba(255,255,255,.12);
-    border-radius: 5px;
-    padding: 4px 10px;
-    font-size: 11px;
-    cursor: pointer;
-    font-family: {font_mono};
-    transition: background .15s;
-  }}
-  button:hover {{ background: {accent}; border-color: {accent}; color: #fff; }}
-  #canvas-wrap {{
-    flex: 1; overflow: hidden; position: relative; cursor: grab;
-  }}
-  #canvas-wrap:active {{ cursor: grabbing; }}
-  canvas {{ position: absolute; top:0; left:0; }}
-</style>
-</head>
-<body>
-<div id="toolbar">
-  <button onclick="zoom(1.25)">＋ Zoom</button>
-  <button onclick="zoom(0.8)">－ Zoom</button>
-  <button onclick="resetView()">⤢ Fit</button>
-  <button onclick="saveImg()">💾 Save PNG</button>
-  <span id="info">Loading…</span>
-</div>
-<div id="canvas-wrap">
-  <canvas id="c"></canvas>
-</div>
-<script>
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-const wrap = document.getElementById('canvas-wrap');
-const info = document.getElementById('info');
-
-let img = new Image();
-let scale = 1, ox = 0, oy = 0;
-let dragging = false, lastX, lastY;
-
-img.crossOrigin = 'anonymous';
-img.onload = () => {{
-  info.textContent = img.naturalWidth + ' × ' + img.naturalHeight + ' px';
-  resetView();
-}};
-img.onerror = () => {{
-  info.textContent = 'Failed to load image';
-  ctx.fillStyle='#ff4040'; ctx.font='14px monospace';
-  ctx.fillText('Image load failed', 20, 40);
-}};
-img.src = '{img_url}';
-
-function resize() {{
-  canvas.width = wrap.clientWidth;
-  canvas.height = wrap.clientHeight;
-  draw();
-}}
-function resetView() {{
-  const wr = wrap.clientWidth / img.naturalWidth;
-  const hr = wrap.clientHeight / img.naturalHeight;
-  scale = Math.min(wr, hr) * 0.95;
-  ox = (wrap.clientWidth  - img.naturalWidth  * scale) / 2;
-  oy = (wrap.clientHeight - img.naturalHeight * scale) / 2;
-  draw();
-}}
-function draw() {{
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (img.complete && img.naturalWidth)
-    ctx.drawImage(img, ox, oy, img.naturalWidth*scale, img.naturalHeight*scale);
-}}
-function zoom(f) {{
-  scale *= f;
-  ox = canvas.width/2  - (canvas.width/2  - ox) * f;
-  oy = canvas.height/2 - (canvas.height/2 - oy) * f;
-  draw();
-}}
-function saveImg() {{
-  const a = document.createElement('a');
-  a.download = 'orthophoto.png';
-  a.href = canvas.toDataURL('image/png');
-  a.click();
-}}
-wrap.addEventListener('mousedown', e => {{
-  dragging=true; lastX=e.clientX; lastY=e.clientY;
-}});
-window.addEventListener('mouseup',   () => dragging=false);
-window.addEventListener('mousemove', e => {{
-  if (!dragging) return;
-  ox += e.clientX-lastX; oy += e.clientY-lastY;
-  lastX=e.clientX; lastY=e.clientY; draw();
-}});
-wrap.addEventListener('wheel', e => {{
-  e.preventDefault();
-  const f = e.deltaY < 0 ? 1.1 : 0.9;
-  const mx = e.offsetX, my = e.offsetY;
-  scale *= f;
-  ox = mx - (mx-ox)*f;
-  oy = my - (my-oy)*f;
-  draw();
-}}, {{passive:false}});
-window.addEventListener('resize', resize);
-resize();
-</script>
-</body>
-</html>"""
-
+    """Return a self-contained pan/zoom orthophoto viewer (loaded from template)."""
+    return render_template(
+        "orthophoto_viewer.html",
+        IMG_URL=img_url, ACCENT=accent, BG_DEEP=bg_deep,
+        BG_PANEL=bg_panel, TXT_LOW=txt_low, FONT_MONO=font_mono,
+    )
 
 def _build_3d_viewer_html(glb_url: str, accent: str, bg_deep: str, bg_panel: str,
                            txt_low: str, txt_mid: str, font_mono: str) -> str:
-    """
-    Return a self-contained Three.js GLB viewer.
-    Uses Three.js r128 + GLTFLoader + DRACOLoader from cdnjs/jsdelivr.
-    DRACOLoader is always provided so Draco-compressed GLBs (common in ODM)
-    load without the "No DRACOLoader instance provided" error.
-    Falls back gracefully when CDN is unreachable.
-    """
-    return f"""<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  * {{ margin:0; padding:0; box-sizing:border-box; }}
-  body {{
-    background:{bg_deep}; overflow:hidden;
-    font-family:{font_mono}; color:{txt_mid};
-  }}
-  #overlay {{
-    position:fixed; inset:0; background:{bg_deep};
-    display:flex; flex-direction:column;
-    align-items:center; justify-content:center;
-    z-index:100; transition:opacity .5s;
-  }}
-  #overlay.hidden {{ opacity:0; pointer-events:none; }}
-  .spinner {{
-    width:38px; height:38px; border:3px solid rgba(255,255,255,.08);
-    border-top-color:{accent};
-    border-radius:50%; animation:spin .8s linear infinite; margin-bottom:14px;
-  }}
-  @keyframes spin {{ to{{ transform:rotate(360deg); }} }}
-  #load-msg {{ font-size:11px; color:{txt_low}; letter-spacing:.5px; }}
-  #load-bar-wrap {{
-    width:220px; height:3px; background:rgba(255,255,255,.08);
-    border-radius:2px; margin-top:10px; overflow:hidden;
-  }}
-  #load-bar {{
-    height:100%; width:0%; background:{accent};
-    border-radius:2px; transition:width .2s;
-  }}
-  #toolbar {{
-    position:fixed; top:0; left:0; right:0;
-    background:rgba(14,20,28,.82); backdrop-filter:blur(10px);
-    border-bottom:1px solid rgba(255,255,255,.06);
-    padding:5px 10px; display:flex; gap:5px; align-items:center;
-    z-index:50; height:36px;
-  }}
-  .tbtn {{
-    background:rgba(255,255,255,.06);
-    color:#b8ccdc; border:1px solid rgba(255,255,255,.1);
-    border-radius:5px; padding:3px 9px; font-size:10.5px;
-    cursor:pointer; font-family:{font_mono}; transition:all .15s;
-    white-space:nowrap;
-  }}
-  .tbtn:hover {{ background:{accent}; border-color:{accent}; color:#fff; }}
-  .tbtn.active {{ background:{accent}22; border-color:{accent}88; color:{accent}; }}
-  #hint {{
-    margin-left:auto; font-size:10px; color:{txt_low};
-    letter-spacing:.2px; white-space:nowrap;
-  }}
-  #errbox {{
-    display:none; position:fixed; inset:0;
-    background:{bg_deep}; align-items:center; justify-content:center;
-    z-index:200; flex-direction:column; gap:14px; padding:30px;
-  }}
-  #errbox p {{
-    color:{txt_low}; font-size:11px; text-align:center;
-    max-width:360px; line-height:1.7;
-  }}
-  canvas {{ display:block; }}
-</style>
-</head>
-<body>
-<div id="overlay">
-  <div class="spinner"></div>
-  <div id="load-msg">Initialising 3D viewer…</div>
-  <div id="load-bar-wrap"><div id="load-bar"></div></div>
-</div>
-<div id="toolbar">
-  <button class="tbtn" onclick="resetCamera()">⤢ Reset</button>
-  <button class="tbtn" id="btnWire" onclick="toggleWireframe()">⬡ Wire</button>
-  <button class="tbtn" id="btnAxes" onclick="toggleAxes()">✛ Axes</button>
-  <button class="tbtn" id="btnShade" onclick="toggleShading()">◑ Shade</button>
-  <button class="tbtn" id="animBtn" onclick="toggleAnim()" style="display:none">▶ Anim</button>
-  <span id="hint">drag · scroll · right-drag</span>
-</div>
-<div id="errbox">
-  <div class="spinner"></div>
-  <p>3D viewer needs an internet connection to load Three.js.<br>
-     Use <b>Open 3D in Browser</b> instead, or check your network.</p>
-</div>
+    """Return a self-contained Three.js GLB viewer (loaded from template)."""
+    return render_template(
+        "3d_viewer.html",
+        GLB_URL=glb_url, ACCENT=accent, BG_DEEP=bg_deep,
+        BG_PANEL=bg_panel, TXT_LOW=txt_low, TXT_MID=txt_mid,
+        FONT_MONO=font_mono,
+    )
+
+
+def _build_viewer_placeholder_html():
+    """Return the placeholder HTML shown before any results are loaded."""
+    return render_template(
+        "viewer_placeholder.html",
+        BG_DEEP=BG_DEEP, BG_PANEL=BG_PANEL, BORDER=BORDER,
+        TXT_LOW=TXT_LOW, FONT_MONO=FONT_MONO, ACCENT=ACCENT,
+    )
 
-<!-- Three.js r128 (UMD build, no ES modules — works in QtWebEngine) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"
-        crossorigin="anonymous"
-        onerror="showErr();">
-</script>
-<!-- GLTFLoader for r128 -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"
-        crossorigin="anonymous" onerror="showErr();">
-</script>
-<!-- DRACOLoader for r128 — MUST be present or Draco-compressed ODM GLBs fail -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"
-        crossorigin="anonymous" onerror="showErr();">
-</script>
-<!-- OrbitControls for r128 -->
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"
-        crossorigin="anonymous">
-</script>
-
-<script>
-function showErr() {{
-  document.getElementById('errbox').style.display = 'flex';
-  document.getElementById('overlay').classList.add('hidden');
-}}
-
-// Guard: all required libs must be present
-window.addEventListener('load', function() {{
-  if (typeof THREE === 'undefined' || !THREE.GLTFLoader || !THREE.DRACOLoader) {{
-    showErr(); return;
-  }}
-  initViewer();
-}});
-
-function initViewer() {{
-// ── Renderer ───────────────────────────────────────────────────────────────
-const renderer = new THREE.WebGLRenderer({{ antialias: true }});
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.outputEncoding = THREE.sRGBEncoding;
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.15;
-document.body.appendChild(renderer.domElement);
-
-// ── Scene ──────────────────────────────────────────────────────────────────
-const scene = new THREE.Scene();
-scene.background = new THREE.Color('{bg_deep}');
-scene.fog = new THREE.FogExp2('{bg_deep}', 0.0015);
-
-const gridHelper = new THREE.GridHelper(500, 50, 0x1e2a38, 0x161f2a);
-scene.add(gridHelper);
-
-const axesHelper = new THREE.AxesHelper(5);
-axesHelper.visible = false;
-scene.add(axesHelper);
-
-// ── Lights ──────────────────────────────────────────────────────────────────
-const ambient = new THREE.AmbientLight(0xffffff, 0.55);
-scene.add(ambient);
-
-const sun = new THREE.DirectionalLight(0xfff4e0, 1.6);
-sun.position.set(8, 15, 10);
-sun.castShadow = true;
-sun.shadow.mapSize.set(2048, 2048);
-sun.shadow.camera.far = 5000;
-scene.add(sun);
-
-const fill = new THREE.DirectionalLight(0x4a80c0, 0.35);
-fill.position.set(-6, 4, -8);
-scene.add(fill);
-
-// ── Camera ─────────────────────────────────────────────────────────────────
-const camera = new THREE.PerspectiveCamera(
-  45, window.innerWidth / window.innerHeight, 0.001, 50000);
-camera.position.set(0, 10, 20);
-
-// ── Controls ───────────────────────────────────────────────────────────────
-const controls = new THREE.OrbitControls(camera, renderer.domElement);
-controls.enableDamping  = true;
-controls.dampingFactor  = 0.07;
-controls.screenSpacePanning = true;
-controls.minDistance    = 0.01;
-controls.maxDistance    = 20000;
-controls.zoomSpeed      = 1.2;
-
-// ── State ──────────────────────────────────────────────────────────────────
-let model = null, mixer = null, clock = new THREE.Clock();
-let wireMode = false, flatShade = false, animPaused = false;
-let savedCamPos = null, savedTarget = null;
-
-// ── DRACOLoader — pointed at jsDelivr-hosted decoder WASM ─────────────────
-const dracoLoader = new THREE.DRACOLoader();
-// Use the same version's decoder workers from jsDelivr
-dracoLoader.setDecoderPath(
-  'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/gltf/'
-);
-dracoLoader.setDecoderConfig({{ type: 'js' }});  // fallback to JS decoder (no WASM CORS issues)
-
-// ── GLTFLoader ─────────────────────────────────────────────────────────────
-const loader = new THREE.GLTFLoader();
-loader.setDRACOLoader(dracoLoader);   // ← key: prevents "No DRACOLoader" error
-
-loader.load(
-  '{glb_url}',
-  (gltf) => {{
-    model = gltf.scene;
-    model.traverse(child => {{
-      if (child.isMesh) {{
-        child.castShadow    = true;
-        child.receiveShadow = true;
-        if (child.material) child.material.side = THREE.DoubleSide;
-      }}
-    }});
-    scene.add(model);
-
-    // Fit camera
-    const box    = new THREE.Box3().setFromObject(model);
-    const size   = new THREE.Vector3();
-    const center = new THREE.Vector3();
-    box.getSize(size);
-    box.getCenter(center);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const fov    = camera.fov * (Math.PI / 180);
-    let dist     = (maxDim / 2) / Math.tan(fov / 2) * 1.6;
-
-    camera.near = dist * 0.0005;
-    camera.far  = dist * 200;
-    camera.updateProjectionMatrix();
-    camera.position.set(center.x + dist*.6, center.y + dist*.4, center.z + dist);
-
-    controls.target.copy(center);
-    controls.update();
-
-    // Reposition grid floor
-    gridHelper.position.y = box.min.y - 0.01;
-    gridHelper.scale.setScalar(maxDim * 0.8);
-
-    savedCamPos = camera.position.clone();
-    savedTarget = controls.target.clone();
-
-    if (gltf.animations && gltf.animations.length) {{
-      mixer = new THREE.AnimationMixer(model);
-      gltf.animations.forEach(clip => mixer.clipAction(clip).play());
-      document.getElementById('animBtn').style.display = 'inline-block';
-    }}
-
-    dracoLoader.dispose();
-    document.getElementById('overlay').classList.add('hidden');
-  }},
-  (xhr) => {{
-    if (xhr.total > 0) {{
-      const pct = Math.round(xhr.loaded / xhr.total * 100);
-      document.getElementById('load-msg').textContent = 'Loading… ' + pct + '%';
-      document.getElementById('load-bar').style.width = pct + '%';
-    }}
-  }},
-  (err) => {{
-    console.error('GLTFLoader error:', err);
-    document.getElementById('load-msg').textContent = 'Load failed: ' + (err.message || err);
-    setTimeout(showErr, 900);
-  }}
-);
-
-// ── Toolbar actions ────────────────────────────────────────────────────────
-function resetCamera() {{
-  if (!savedCamPos) return;
-  camera.position.copy(savedCamPos);
-  controls.target.copy(savedTarget);
-  controls.update();
-}}
-
-function toggleWireframe() {{
-  wireMode = !wireMode;
-  document.getElementById('btnWire').classList.toggle('active', wireMode);
-  if (model) model.traverse(c => {{
-    if (c.isMesh && c.material) c.material.wireframe = wireMode;
-  }});
-}}
-
-function toggleAxes() {{
-  axesHelper.visible = !axesHelper.visible;
-  document.getElementById('btnAxes').classList.toggle('active', axesHelper.visible);
-}}
-
-function toggleShading() {{
-  flatShade = !flatShade;
-  document.getElementById('btnShade').classList.toggle('active', flatShade);
-  if (model) model.traverse(c => {{
-    if (c.isMesh && c.material) {{
-      c.material.flatShading = flatShade;
-      c.material.needsUpdate = true;
-    }}
-  }});
-}}
-
-function toggleAnim() {{
-  animPaused = !animPaused;
-  document.getElementById('animBtn').textContent = animPaused ? '▶ Play' : '⏸ Pause';
-}}
-
-// ── Render loop ────────────────────────────────────────────────────────────
-(function animate() {{
-  requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  if (mixer && !animPaused) mixer.update(dt);
-  controls.update();
-  renderer.render(scene, camera);
-}})();
-
-window.addEventListener('resize', () => {{
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-}});
-
-}} // end initViewer
-
-</script>
-</body>
-</html>"""
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  NodeODM REST client (pure requests, no pyodm)
-# ─────────────────────────────────────────────────────────────────────────────
-class NodeODMClient:
-    def __init__(self, host="localhost", port=3000, token="", timeout=30):
-        self.base    = f"http://{host}:{port}"
-        self.token   = token
-        self.timeout = timeout
-
-    def _params(self, extra=None):
-        p = {}
-        if self.token:
-            p["token"] = self.token
-        if extra:
-            p.update(extra)
-        return p
-
-    def info(self):
-        r = requests.get(f"{self.base}/info",
-                         params=self._params(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
-
-    def options(self):
-        r = requests.get(f"{self.base}/options",
-                         params=self._params(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
-
-    def create_task(self, image_paths, options, name="BuildScan Task",
-                    webhook=None, progress_cb=None):
-        """
-        Upload images and create a task via POST /task/new (multipart).
-        Returns task dict with 'uuid'.
-        progress_cb(n, total) called after each image upload.
-        """
-        url       = f"{self.base}/task/new"
-        opts_json = json.dumps([{"name": k, "value": v}
-                                 for k, v in options.items()])
-        file_handles = []
-        files = []
-        try:
-            for i, path in enumerate(image_paths):
-                fh = open(path, "rb")
-                file_handles.append(fh)
-                files.append(("images",
-                              (os.path.basename(path), fh, "image/jpeg")))
-                if progress_cb:
-                    progress_cb(i + 1, len(image_paths))
-
-            data = {"name": name, "options": opts_json}
-            if webhook:
-                data["webhook"] = webhook
-
-            r = requests.post(url, params=self._params(), data=data,
-                              files=files, timeout=self.timeout * 10)
-            r.raise_for_status()
-            return r.json()
-        finally:
-            for fh in file_handles:
-                try:
-                    fh.close()
-                except Exception:
-                    pass
-
-    def task_info(self, task_uuid):
-        r = requests.get(f"{self.base}/task/{task_uuid}/info",
-                         params=self._params(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
-
-    def task_output(self, task_uuid, line=0):
-        r = requests.get(f"{self.base}/task/{task_uuid}/output",
-                         params=self._params({"line": line}),
-                         timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()  # list of strings
-
-    def download_all(self, task_uuid, dest_path, progress_cb=None):
-        url = f"{self.base}/task/{task_uuid}/download/all.zip"
-        r   = requests.get(url, params=self._params(),
-                           stream=True, timeout=600)
-        r.raise_for_status()
-        total      = int(r.headers.get("content-length", 0))
-        downloaded = 0
-        with open(dest_path, "wb") as f:
-            for chunk in r.iter_content(chunk_size=1024 * 256):
-                if chunk:
-                    f.write(chunk)
-                    downloaded += len(chunk)
-                    if progress_cb and total > 0:
-                        progress_cb(int(downloaded / total * 100))
-        return dest_path
-
-    def cancel_task(self, task_uuid):
-        r = requests.post(f"{self.base}/task/{task_uuid}/cancel",
-                          params=self._params(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
-
-    def delete_task(self, task_uuid):
-        r = requests.post(f"{self.base}/task/{task_uuid}/remove",
-                          params=self._params(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
-
-    def list_tasks(self):
-        r = requests.get(f"{self.base}/task/list",
-                         params=self._params(), timeout=self.timeout)
-        r.raise_for_status()
-        return r.json()
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-#  Background workers (QThread)
-# ─────────────────────────────────────────────────────────────────────────────
-class UploadWorker(QThread):
-    progress = pyqtSignal(int, int)   # (uploaded, total)
-    log      = pyqtSignal(str)
-    finished = pyqtSignal(str)        # task_uuid on success
-    error    = pyqtSignal(str)
-
-    def __init__(self, client, image_paths, options, task_name):
-        super().__init__()
-        self.client      = client
-        self.image_paths = image_paths
-        self.options     = options
-        self.task_name   = task_name
-
-    def run(self):
-        try:
-            self.log.emit(f"Uploading {len(self.image_paths)} images to NodeODM…")
-            result = self.client.create_task(
-                self.image_paths, self.options, self.task_name,
-                progress_cb=lambda n, t: self.progress.emit(n, t)
-            )
-            uuid = result.get("uuid", "")
-            if not uuid:
-                self.error.emit(f"No UUID returned: {result}")
-                return
-            self.log.emit(f"Task created: {uuid}")
-            self.finished.emit(uuid)
-        except Exception as e:
-            self.error.emit(str(e))
-
-
-class PollingWorker(QThread):
-    """Polls task status every N seconds until done/failed/cancelled."""
-    status_update = pyqtSignal(dict)   # full task info dict
-    log_lines     = pyqtSignal(list)   # new console lines
-    finished      = pyqtSignal(dict)   # final task info
-    error         = pyqtSignal(str)
-
-    MAX_ITERATIONS = 2880  # 4 hours at 5-second intervals
-
-    def __init__(self, client, task_uuid, poll_interval=5):
-        super().__init__()
-        self.client        = client
-        self.task_uuid     = task_uuid
-        self.poll_interval = poll_interval
-        self.running       = True
-        self._last_line    = 0
-
-    def run(self):
-        iterations = 0
-        while self.running and iterations < self.MAX_ITERATIONS:
-            try:
-                info = self.client.task_info(self.task_uuid)
-                self.status_update.emit(info)
-
-                # Fetch new log lines
-                try:
-                    lines = self.client.task_output(self.task_uuid,
-                                                    self._last_line)
-                    if lines:
-                        self.log_lines.emit(lines)
-                        self._last_line += len(lines)
-                except Exception:
-                    pass
-
-                code = info.get("status", {}).get("code", 0)
-                if code in (30, 40, 50):   # failed, completed, cancelled
-                    self.finished.emit(info)
-                    return
-
-            except Exception as e:
-                self.error.emit(str(e))
-
-            iterations += 1
-            time.sleep(self.poll_interval)
-
-        if iterations >= self.MAX_ITERATIONS:
-            self.error.emit("Polling timeout: task exceeded maximum wait time.")
-
-    def stop(self):
-        self.running = False
-
-
-class DownloadWorker(QThread):
-    progress = pyqtSignal(int)
-    log      = pyqtSignal(str)
-    finished = pyqtSignal(str)   # extracted output folder path
-    error    = pyqtSignal(str)
-
-    def __init__(self, client, task_uuid, output_dir):
-        super().__init__()
-        self.client     = client
-        self.task_uuid  = task_uuid
-        self.output_dir = output_dir
-
-    def run(self):
-        try:
-            zip_path = os.path.join(self.output_dir, "all.zip")
-            self.log.emit("Downloading results (all.zip)…")
-            self.client.download_all(
-                self.task_uuid, zip_path,
-                progress_cb=lambda p: self.progress.emit(p)
-            )
-            self.log.emit("Download complete. Extracting…")
-            extract_dir = os.path.join(self.output_dir, "odm_results")
-            os.makedirs(extract_dir, exist_ok=True)
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                zf.extractall(extract_dir)
-            os.remove(zip_path)
-            self.log.emit(f"Extracted to: {extract_dir}")
-            self.finished.emit(extract_dir)
-        except Exception as e:
-            self.error.emit(str(e))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -2397,20 +1739,7 @@ class ODMTab(QWidget):
 
     # ── Viewer placeholder ────────────────────────────────────────────────────
     def _viewer_placeholder(self):
-        return f"""<!DOCTYPE html>
-<html><body style='margin:0; background:{BG_DEEP};
-  display:flex; align-items:center; justify-content:center; height:100vh;'>
-<div style='background:{BG_PANEL}; border:1px solid {BORDER};
-  border-radius:12px; padding:20px 24px; color:{TXT_LOW};
-  font-family:{FONT_MONO}; text-align:center; font-size:12px;
-  max-width:440px; line-height:1.7;'>
-  PREVIEW<br><br>
-  Orthophoto and 3D model previews appear here<br>
-  after processing + download complete.<br><br>
-  <span style='color:{TXT_LOW}; font-size:10px;'>
-  Use <b style='color:{ACCENT}'>🗺️ Orthophoto</b> or
-  <b style='color:{ACCENT}'>🏗️ 3D Model</b> to load results.</span>
-</div></body></html>"""
+        return _build_viewer_placeholder_html()
 
     # ── Utility ───────────────────────────────────────────────────────────────
     def _log(self, msg: str):

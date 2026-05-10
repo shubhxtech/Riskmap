@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background: %%BG_DEEP%%;
+    display: flex; flex-direction: column;
+    height: 100vh; overflow: hidden;
+    font-family: %%FONT_MONO%%;
+  }
+  #toolbar {
+    background: %%BG_PANEL%%;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    padding: 6px 10px;
+    display: flex; gap: 8px; align-items: center;
+    flex-shrink: 0;
+  }
+  #toolbar span {
+    color: %%TXT_LOW%%;
+    font-size: 10px;
+    margin-left: auto;
+  }
+  button {
+    background: rgba(255,255,255,.07);
+    color: #e0eaf4;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 5px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: %%FONT_MONO%%;
+    transition: background .15s;
+  }
+  button:hover { background: %%ACCENT%%; border-color: %%ACCENT%%; color: #fff; }
+  #canvas-wrap {
+    flex: 1; overflow: hidden; position: relative; cursor: grab;
+  }
+  #canvas-wrap:active { cursor: grabbing; }
+  canvas { position: absolute; top:0; left:0; }
+</style>
+</head>
+<body>
+<div id="toolbar">
+  <button onclick="zoom(1.25)">＋ Zoom</button>
+  <button onclick="zoom(0.8)">－ Zoom</button>
+  <button onclick="resetView()">⤢ Fit</button>
+  <button onclick="saveImg()">💾 Save PNG</button>
+  <span id="info">Loading…</span>
+</div>
+<div id="canvas-wrap">
+  <canvas id="c"></canvas>
+</div>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const wrap = document.getElementById('canvas-wrap');
+const info = document.getElementById('info');
+
+let img = new Image();
+let scale = 1, ox = 0, oy = 0;
+let dragging = false, lastX, lastY;
+
+img.crossOrigin = 'anonymous';
+img.onload = () => {
+  info.textContent = img.naturalWidth + ' × ' + img.naturalHeight + ' px';
+  resetView();
+};
+img.onerror = () => {
+  info.textContent = 'Failed to load image';
+  ctx.fillStyle='#ff4040'; ctx.font='14px monospace';
+  ctx.fillText('Image load failed', 20, 40);
+};
+img.src = '%%IMG_URL%%';
+
+function resize() {
+  canvas.width = wrap.clientWidth;
+  canvas.height = wrap.clientHeight;
+  draw();
+}
+function resetView() {
+  const wr = wrap.clientWidth / img.naturalWidth;
+  const hr = wrap.clientHeight / img.naturalHeight;
+  scale = Math.min(wr, hr) * 0.95;
+  ox = (wrap.clientWidth  - img.naturalWidth  * scale) / 2;
+  oy = (wrap.clientHeight - img.naturalHeight * scale) / 2;
+  draw();
+}
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  if (img.complete && img.naturalWidth)
+    ctx.drawImage(img, ox, oy, img.naturalWidth*scale, img.naturalHeight*scale);
+}
+function zoom(f) {
+  scale *= f;
+  ox = canvas.width/2  - (canvas.width/2  - ox) * f;
+  oy = canvas.height/2 - (canvas.height/2 - oy) * f;
+  draw();
+}
+function saveImg() {
+  const a = document.createElement('a');
+  a.download = 'orthophoto.png';
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+}
+wrap.addEventListener('mousedown', e => {
+  dragging=true; lastX=e.clientX; lastY=e.clientY;
+});
+window.addEventListener('mouseup',   () => dragging=false);
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  ox += e.clientX-lastX; oy += e.clientY-lastY;
+  lastX=e.clientX; lastY=e.clientY; draw();
+});
+wrap.addEventListener('wheel', e => {
+  e.preventDefault();
+  const f = e.deltaY < 0 ? 1.1 : 0.9;
+  const mx = e.offsetX, my = e.offsetY;
+  scale *= f;
+  ox = mx - (mx-ox)*f;
+  oy = my - (my-oy)*f;
+  draw();
+}, {passive:false});
+window.addEventListener('resize', resize);
+resize();
+</script>
+</body>
+</html>

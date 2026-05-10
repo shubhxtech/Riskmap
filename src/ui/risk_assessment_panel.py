@@ -23,7 +23,7 @@ from PyQt5.QtWidgets import (
     QLineEdit, QDialog, QDialogButtonBox, QFormLayout
 )
 
-from ._constants import (
+from .constants import (
     BG_CARD, BG_PANEL, BORDER, ACCENT, ACCENT3,
     TXT_HI, TXT_MID, TXT_LOW, MPL_STYLE, DS_COLORS, DEFAULT_GPS_ORIGIN,
 )

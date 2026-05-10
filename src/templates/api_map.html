@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="initial-scale=1.0, user-scalable=yes" />
+  <style>
+    html, body, #map { height: 100%; margin: 0; padding: 0 }
+    .controls {
+        margin-top: 10px;
+        border: 1px solid transparent;
+        border-radius: 2px 0 0 2px;
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+        height: 32px;
+        outline: none;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    #pac-input {
+        background-color: #fff;
+        font-family: Roboto;
+        font-size: 15px;
+        font-weight: 400;
+        margin-left: 12px;
+        padding: 0 11px 0 13px;
+        text-overflow: ellipsis;
+        width: 350px;
+        height: 40px;
+        line-height: 40px;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 -1px 0px rgba(0,0,0,0.02);
+        border: none;
+    }
+
+    #pac-input:focus {
+        border-color: #4d90fe;
+    }
+    
+    .pac-container {
+        z-index: 10000 !important;
+        background-color: #fff;
+        border-top: 1px solid #d9d9d9;
+        font-family: Roboto, Arial, sans-serif;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        border-radius: 0 0 8px 8px;
+        margin-top: 5px;
+    }
+    
+    .pac-item {
+        cursor: default;
+        padding: 0 4px;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        white-space: nowrap;
+        line-height: 30px;
+        text-align: left;
+        border-top: 1px solid #e6e6e6;
+        font-size: 11px;
+        color: #999;
+    }
+    
+    .pac-item:hover {
+        background-color: #fafafa;
+    }
+    
+    .pac-item-query {
+        font-size: 13px;
+        color: #000;
+        padding-right: 3px;
+    }
+  </style>
+  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+  <script>
+    let map, drawingManager, shapes=[];
+    let autocomplete;
+    
+    // Cache management functions for persistent map state
+    function saveMapState() {
+        try {
+            const state = {
+                center: { lat: map.getCenter().lat(), lng: map.getCenter().lng() },
+                zoom: map.getZoom(),
+                mapType: map.getMapTypeId(),
+                timestamp: Date.now()
+            };
+            localStorage.setItem('riskmap_state', JSON.stringify(state));
+            console.log('Map state saved to cache');
+        } catch (e) {
+            console.error('Failed to save map state:', e);
+        }
+    }
+    
+    function loadMapState() {
+        try {
+            const cached = localStorage.getItem('riskmap_state');
+            if (cached) {
+                const state = JSON.parse(cached);
+                console.log('Loaded cached map state:', state);
+                return state;
+            }
+        } catch (e) {
+            console.error('Failed to load cached state:', e);
+        }
+        return null;
+    }
+    
+    function initMap() {
+        console.log('initMap called');
+        
+        if (typeof google === 'undefined') {
+            console.error('Google Maps API not loaded!');
+            setTimeout(initMap, 500); // Retry after 500ms
+            return;
+        }
+        
+        console.log('Google Maps API loaded successfully');
+        const aizawlBounds = %%MAP_BOUNDS%%;
+        
+        // Try to restore from cache
+        const cachedState = loadMapState();
+
+        try {
+            map = new google.maps.Map(document.getElementById('map'), {
+                center: cachedState?.center || %%MAP_CENTRE%%, 
+                zoom: cachedState?.zoom || 11,
+                minZoom: 1,
+                maxZoom: 20,
+                mapTypeId: cachedState?.mapType || google.maps.MapTypeId.ROADMAP,
+                mapTypeControl: true,
+                mapTypeControlOptions: {
+                    style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
+                    position: google.maps.ControlPosition.TOP_RIGHT,
+                    mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain']
+                },
+                streetViewControl: false,
+                fullscreenControl: true
+            });
+            
+            // Add tile load listener
+            google.maps.event.addListener(map, 'tilesloaded', function() {
+                console.log('Map tiles loaded successfully');
+            });
+            
+            // Auto-save map state on changes (debounced)
+            let saveTimeout;
+            google.maps.event.addListener(map, 'idle', function() {
+                console.log('Map is idle and ready');
+                // Debounce save to avoid excessive writes
+                clearTimeout(saveTimeout);
+                saveTimeout = setTimeout(saveMapState, 500);
+            });
+
+            drawingManager = new google.maps.drawing.DrawingManager({
+                drawingMode: null,
+                drawingControl: false,
+                drawingControlOptions: {
+                    drawingModes: ['rectangle', 'circle', 'polygon']
+                }
+            });
+
+            drawingManager.setMap(map);
+
+            google.maps.event.addListener(drawingManager, 'overlaycomplete', function(e) {
+                shapes.push(e.overlay);
+                let coords = [];
+                if (e.type === 'circle') {
+                    let center = e.overlay.getCenter(); coords.push([center.lat(), center.lng()]);
+                } else if (e.type === 'rectangle') {
+                    let bounds = e.overlay.getBounds();
+                    let ne = bounds.getNorthEast(), sw = bounds.getSouthWest();
+                    coords = [[ne.lat(), ne.lng()], [sw.lat(), sw.lng()]];
+                } else if (e.type === 'polygon') {
+                    e.overlay.getPath().forEach(pt => coords.push([pt.lat(), pt.lng()]));
+                }
+                new QWebChannel(qt.webChannelTransport, channel => {
+                    channel.objects.coordReceiver.receiveCoordinates(coords);
+                });
+            });
+            
+            console.log('Map initialized successfully');
+            
+            // Add Street View coverage layer to show where panoramas are available
+            const streetViewLayer = new google.maps.StreetViewCoverageLayer();
+            streetViewLayer.setMap(map);
+            console.log('Street View coverage layer added');
+            
+            // Initialize Google Places Autocomplete after map loads
+            initAutocomplete();
+        } catch (error) {
+            console.error('Error initializing map:', error);
+        }
+    }
+    
+    function initAutocomplete() {
+        console.log('Initializing Places Autocomplete');
+        
+        // Wait for map and library
+        setTimeout(function() {
+            try {
+                if (!google.maps.places) {
+                    console.error('Google Maps Places library is NOT loaded. Check API key and libraries parameter.');
+                    return;
+                }
+
+                let input = document.getElementById('pac-input');
+                if (!input) {
+                   // Create if missing
+                   input = document.createElement('input');
+                   input.id = 'pac-input';
+                   input.className = 'controls';
+                   input.type = 'text';
+                   input.placeholder = 'Search Google Maps';
+                   map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
+                }
+
+                // Use 'input' variable DIRECTLY. Do not re-query 'getElementById' immediately.
+                const searchInput = input;
+
+                // Wait for element to be "pushed" to map controls (small delay)
+                setTimeout(function() {
+                    // Initialize autocomplete
+                    autocomplete = new google.maps.places.Autocomplete(searchInput, {
+                        fields: ['geometry', 'name', 'formatted_address']
+                    });
+                    
+                    autocomplete.bindTo('bounds', map);
+                    
+                    autocomplete.addListener('place_changed', function() {
+                        // ... existing handler logic ...
+                        const place = autocomplete.getPlace();
+                        console.log('Place selected (raw): ' + JSON.stringify(place));
+
+                        if (!place.geometry || !place.geometry.location) {
+                            console.log('No geometry for place. User might have hit Enter without selecting suggestion.');
+                            
+                            // Fallback: Geocode the name or query
+                            const query = place.name || searchInput.value;
+                            if (query) {
+                                console.log('Attempting Geocode fallback for: ' + query);
+                                const geocoder = new google.maps.Geocoder();
+                                geocoder.geocode({ 'address': query }, function(results, status) {
+                                    if (status === 'OK' && results[0]) {
+                                        console.log('Geocode successful');
+                                        processPlace(results[0]);
+                                    } else {
+                                        console.error('Geocode fallback failed: ' + status);
+                                    }
+                                });
+                            }
+                            return;
+                        }
+                        
+                        processPlace(place);
+                    });
+                    
+                }, 200);
+                
+                function processPlace(place) {
+                    console.log('Processing place: ' + place.name || place.formatted_address);
+                    
+                    if (place.geometry.viewport) {
+                        map.fitBounds(place.geometry.viewport);
+                    } else {
+                        map.setCenter(place.geometry.location);
+                        map.setZoom(13);
+                    }
+                    
+                    setTimeout(function() {
+                        const bounds = map.getBounds();
+                        if (bounds) {
+                            const placeData = {
+                                name: place.name || '',
+                                address: place.formatted_address || '',
+                                lat: place.geometry.location.lat(),
+                                lng: place.geometry.location.lng(),
+                                north: bounds.getNorthEast().lat(),
+                                south: bounds.getSouthWest().lat(),
+                                east: bounds.getNorthEast().lng(),
+                                west: bounds.getSouthWest().lng()
+                            };
+                            
+                            new QWebChannel(qt.webChannelTransport, function(channel) {
+                                channel.objects.placeReceiver.receivePlaceData(placeData);
+                            });
+                        }
+                    }, 500);
+                }
+                
+                console.log('Autocomplete initialized successfully');
+            } catch (error) {
+                console.error('Error initializing autocomplete:', error);
+            }
+        }, 1000);
+    }
+    
+    // ... Helper functions ...
+    function enableRectangle() { drawingManager.setDrawingMode(google.maps.drawing.OverlayType.RECTANGLE); }
+    function enableCircle() { drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE); }
+    function enablePolygon() { drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON); }
+    function enableHand() { drawingManager.setDrawingMode(null); }
+    
+    function toggleMapType() {
+        if (map.getMapTypeId() === 'satellite') {
+            map.setMapTypeId('roadmap');
+            console.log('Switched to roadmap');
+        } else {
+            map.setMapTypeId('satellite');
+            console.log('Switched to satellite');
+        }
+    }
+    
+    var markers = [];
+    function addMarker(lat, lng) {
+        var marker = new google.maps.Marker({
+            position: {lat: lat, lng: lng},
+            map: map,
+            icon: {
+                url: '%%ICON_URL%%',
+                scaledSize: new google.maps.Size(32, 32),
+                anchor: new google.maps.Point(16, 32)
+            },
+            title: 'Panorama Location'
+        });
+        markers.push(marker);
+    }
+    function clearMarkers() {
+        markers.forEach(m => m.setMap(null));
+        markers = [];
+    }
+    function fitBounds(minLat, minLng, maxLat, maxLng) {
+        var bounds = new google.maps.LatLngBounds(
+            new google.maps.LatLng(minLat, minLng),
+            new google.maps.LatLng(maxLat, maxLng)
+        );
+        map.fitBounds(bounds);
+    }
+
+    function clearSelection() { 
+        shapes.forEach(s=>s.setMap(null)); 
+        shapes=[]; 
+        clearMarkers();
+    }
+  </script>
+  <script async defer src="https://maps.googleapis.com/maps/api/js?key=%%API_KEY%%&libraries=drawing,places&loading=async&callback=initMap"></script>
+</head>
+<body>
+  <div id="map"></div>
+</body>
+</html>

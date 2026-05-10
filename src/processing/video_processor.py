@@ -19,7 +19,7 @@ try:
 except ImportError:
     _SKLEARN_OK = False
 
-from ._constants import (
+from ui.constants import (
     CLASS_NAMES, DEFAULT_GPS_ORIGIN, _M_PER_DEG_LAT,
     building_coords, open_video, calculate_iou,
 )

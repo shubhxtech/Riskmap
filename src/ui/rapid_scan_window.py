@@ -27,18 +27,20 @@ from PyQt5.QtWidgets import (
     QLabel, QFileDialog, QTableWidget, QTableWidgetItem, QHeaderView,
     QLineEdit, QFrame, QProgressBar, QSlider, QSpinBox,
     QTextEdit, QGroupBox, QTabWidget, QDoubleSpinBox,
-    QScrollArea, QSizePolicy,
+    QScrollArea, QSizePolicy, QDialog, QCheckBox, QFormLayout,
+    QDialogButtonBox,
 )
 
-from ._constants import (
+from .constants import (
     BG_DEEP, BG_PANEL, BG_CARD, BORDER,
     ACCENT, ACCENT2, ACCENT3,
     TXT_HI, TXT_MID, TXT_LOW, FONT_MONO,
     CLASS_NAMES, DEFAULT_GPS_ORIGIN,
     js_escape, open_video,
 )
-from ._video_processor import VideoProcessor
-from ._risk_panel import RiskAssessmentPanel
+from processing.video_processor import VideoProcessor
+from processing.panoramic_processor import PanoramicProcessor, ALL_ANGLES, PERSPECTIVE_YAWS
+from .risk_assessment_panel import RiskAssessmentPanel
 
 
 class RapidScanWindow(QWidget):
@@ -52,12 +54,18 @@ class RapidScanWindow(QWidget):
         self.gps_origin = gps_origin
 
         self.video_path        = None
+        self.gps_csv_path      = None
         self.output_folder     = None
         self.detections        = []
         self.video_processor   = None
+        self.pano_processor    = None
         self.playback_cap      = None
         self._temp_map_file    = None
         self._playback_playing = True
+
+        # 360° pipeline parameters
+        self.spatial_interval  = 15.0
+        self.active_angles     = list(ALL_ANGLES)
 
         self.checkpoint_path = self._resolve_checkpoint()
 
@@ -303,17 +311,20 @@ class RapidScanWindow(QWidget):
 
         # ── Left controls ─────────────────────────────────────────────────────
         ctrl_panel = QWidget()
-        ctrl_panel.setFixedWidth(260)
+        ctrl_panel.setFixedWidth(270)
         ctrl_layout = QVBoxLayout(ctrl_panel)
         ctrl_layout.setSpacing(8)
         ctrl_layout.setContentsMargins(0, 0, 4, 0)
 
-        # File settings
-        file_grp = QGroupBox("FILE SETTINGS")
+        # ── 1. File Settings ──
+        file_grp = QGroupBox("📁  FILE SETTINGS")
         fg = QVBoxLayout(file_grp); fg.setSpacing(6)
-        self.btn_load_video = QPushButton("📁  Load Video")
+        self.btn_load_video = QPushButton("📽️  Load 360° Video")
         self.btn_load_video.setCursor(Qt.PointingHandCursor)
         self.btn_load_video.clicked.connect(self.load_video)
+        self.btn_load_gps = QPushButton("🛰️  Load GPS CSV")
+        self.btn_load_gps.setCursor(Qt.PointingHandCursor)
+        self.btn_load_gps.clicked.connect(self._load_gps_csv)
         self.btn_select_folder = QPushButton("📂  Output Folder")
         self.btn_select_folder.setCursor(Qt.PointingHandCursor)
         self.btn_select_folder.clicked.connect(self.select_output_folder)
@@ -323,93 +334,74 @@ class RapidScanWindow(QWidget):
         )
         self.vid_info.setWordWrap(True)
         fg.addWidget(self.btn_load_video)
+        fg.addWidget(self.btn_load_gps)
         fg.addWidget(self.btn_select_folder)
         fg.addWidget(self.vid_info)
         ctrl_layout.addWidget(file_grp)
 
-        # Detection settings
-        det_grp = QGroupBox("DETECTION SETTINGS")
-        dg = QVBoxLayout(det_grp); dg.setSpacing(6)
-
-        fps_row = QHBoxLayout()
-        fps_lbl = QLabel("Detection FPS:")
-        fps_lbl.setStyleSheet(f"color:{TXT_MID}; font-size:11px;")
-        self.fps_spin = QSpinBox()
-        self.fps_spin.setRange(1, 120); self.fps_spin.setValue(30)
-        self.fps_spin.setSuffix(" fps")
-        fps_row.addWidget(fps_lbl); fps_row.addWidget(self.fps_spin)
-        dg.addLayout(fps_row)
-
-        self.native_fps_lbl = QLabel("Native FPS: —")
-        self.native_fps_lbl.setStyleSheet(
-            f"color:{ACCENT}; font-size:10px; font-family:{FONT_MONO};"
-        )
-        dg.addWidget(self.native_fps_lbl)
-
-        gps_grp_lbl = QLabel("Scene GPS Origin:")
-        gps_grp_lbl.setStyleSheet(
-            f"color:{TXT_MID}; font-size:11px; margin-top:4px;"
-        )
-        dg.addWidget(gps_grp_lbl)
-
-        gps_row = QHBoxLayout()
-        self.origin_lat_spin = QDoubleSpinBox()
-        self.origin_lat_spin.setRange(-90, 90)
-        self.origin_lat_spin.setValue(self.gps_origin[0])
-        self.origin_lat_spin.setDecimals(4); self.origin_lat_spin.setPrefix("Lat: ")
-        self.origin_lon_spin = QDoubleSpinBox()
-        self.origin_lon_spin.setRange(-180, 180)
-        self.origin_lon_spin.setValue(self.gps_origin[1])
-        self.origin_lon_spin.setDecimals(4); self.origin_lon_spin.setPrefix("Lon: ")
-        self.origin_lat_spin.valueChanged.connect(self._on_origin_changed)
-        self.origin_lon_spin.valueChanged.connect(self._on_origin_changed)
-        gps_row.addWidget(self.origin_lat_spin); gps_row.addWidget(self.origin_lon_spin)
-        dg.addLayout(gps_row)
-
-        chkpt_lbl = QLabel("Classifier Checkpoint:")
-        chkpt_lbl.setStyleSheet(f"color:{TXT_MID}; font-size:11px; margin-top:4px;")
+        # ── 2. Classifier ──
+        chkpt_grp = QGroupBox("🧠  CLASSIFIER")
+        cg = QVBoxLayout(chkpt_grp); cg.setSpacing(4)
         self.chkpt_edit = QLineEdit(self.checkpoint_path)
-        self.chkpt_edit.setPlaceholderText("Path to .pth file…")
+        self.chkpt_edit.setPlaceholderText("Path to .pth…")
         self.btn_browse_chkpt = QPushButton("Browse…")
-        self.btn_browse_chkpt.setFixedWidth(76)
+        self.btn_browse_chkpt.setFixedWidth(72)
         self.btn_browse_chkpt.setCursor(Qt.PointingHandCursor)
         self.btn_browse_chkpt.clicked.connect(self._browse_checkpoint)
-        chkpt_row = QHBoxLayout()
-        chkpt_row.addWidget(self.chkpt_edit); chkpt_row.addWidget(self.btn_browse_chkpt)
-        dg.addWidget(chkpt_lbl); dg.addLayout(chkpt_row)
-        ctrl_layout.addWidget(det_grp)
+        cr = QHBoxLayout(); cr.addWidget(self.chkpt_edit); cr.addWidget(self.btn_browse_chkpt)
+        cg.addLayout(cr)
+        ctrl_layout.addWidget(chkpt_grp)
 
-        # Start / Stop
-        action_grp = QGroupBox("CONTROLS")
-        ag = QVBoxLayout(action_grp); ag.setSpacing(6)
-        self.btn_process = QPushButton("▶  START DETECTION")
+        # ── 3. Parameters ──
+        param_grp = QGroupBox("⚙️  PARAMETERS")
+        pag = QVBoxLayout(param_grp); pag.setSpacing(6)
+        self._param_summary = QLabel(self._param_summary_text())
+        self._param_summary.setStyleSheet(f"color:{TXT_MID}; font-size:10px; font-family:{FONT_MONO};")
+        self._param_summary.setWordWrap(True)
+        pag.addWidget(self._param_summary)
+        self.btn_configure = QPushButton("⚙️  Configure…")
+        self.btn_configure.setCursor(Qt.PointingHandCursor)
+        self.btn_configure.clicked.connect(self._show_config_dialog)
+        pag.addWidget(self.btn_configure)
+        ctrl_layout.addWidget(param_grp)
+
+        # ── 4. Pipeline ──
+        pipe_grp = QGroupBox("🚀  PIPELINE")
+        pig = QVBoxLayout(pipe_grp); pig.setSpacing(6)
+        self.btn_process = QPushButton("▶  START PIPELINE")
         self.btn_process.setEnabled(False)
         self.btn_process.setCursor(Qt.PointingHandCursor)
         self.btn_process.setObjectName("ActionButton")
         self.btn_process.setStyleSheet(
-            f"QPushButton#ActionButton {{ background: {ACCENT3}; }}"
+            f"QPushButton#ActionButton {{ background: {ACCENT3}; color:#fff; font-weight:700; font-size:12px; border:none; border-radius:6px; padding:10px 16px; }}"
             f"QPushButton#ActionButton:hover {{ background: #388E3C; }}"
         )
         self.btn_process.clicked.connect(self.start_processing)
-
         self.btn_stop = QPushButton("■  STOP")
         self.btn_stop.setEnabled(False)
         self.btn_stop.setCursor(Qt.PointingHandCursor)
-        self.btn_stop.setObjectName("ActionButton")
+        self.btn_stop.setObjectName("StopButton")
         self.btn_stop.setStyleSheet(
-            f"QPushButton#ActionButton {{ background: {ACCENT2}; }}"
-            f"QPushButton#ActionButton:hover {{ background: #c62828; }}"
+            f"QPushButton#StopButton {{ background: {ACCENT2}; color:#fff; font-weight:700; border:none; border-radius:6px; padding:8px 16px; }}"
+            f"QPushButton#StopButton:hover {{ background: #c62828; }}"
         )
         self.btn_stop.clicked.connect(self.stop_processing)
-        ag.addWidget(self.btn_process); ag.addWidget(self.btn_stop)
-        ctrl_layout.addWidget(action_grp)
+        self.pipeline_status = QLabel("Ready")
+        self.pipeline_status.setStyleSheet(
+            f"color:{ACCENT}; font-size:10px; font-family:{FONT_MONO}; padding:4px 0;"
+        )
+        self.pipeline_status.setWordWrap(True)
+        pig.addWidget(self.btn_process)
+        pig.addWidget(self.btn_stop)
+        pig.addWidget(self.pipeline_status)
+        ctrl_layout.addWidget(pipe_grp)
 
-        # Progress
+        # ── 5. Progress ──
         prog_grp = QGroupBox("PROGRESS")
         pg = QVBoxLayout(prog_grp)
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100); self.progress_bar.setValue(0)
-        self.progress_bar.setFormat("%p%  (%v / %m frames)")
+        self.progress_bar.setFormat("%p%")
         pg.addWidget(self.progress_bar)
         ctrl_layout.addWidget(prog_grp)
         ctrl_layout.addStretch()
@@ -422,7 +414,7 @@ class RapidScanWindow(QWidget):
 
         vid_grp = QGroupBox("🎥  VIDEO FEED")
         vg = QVBoxLayout(vid_grp); vg.setSpacing(6)
-        self.video_label = QLabel("Load a video file to begin")
+        self.video_label = QLabel("Load a 360° video file to begin")
         self.video_label.setAlignment(Qt.AlignCenter)
         self.video_label.setStyleSheet(
             f"background:{BG_DEEP}; border-radius:8px; color:{TXT_MID}; "
@@ -468,7 +460,6 @@ class RapidScanWindow(QWidget):
         self.det_table.setHorizontalHeaderLabels(
             ["ID", "Latitude", "Longitude", "Classification"]
         )
-        # All 4 columns stretch equally so resizing the splitter is even
         hdr = self.det_table.horizontalHeader()
         hdr.setSectionResizeMode(QHeaderView.Stretch)
         self.det_table.setSelectionBehavior(QTableWidget.SelectRows)
@@ -495,10 +486,117 @@ class RapidScanWindow(QWidget):
         vo.addWidget(log_splitter, 2)
 
         content_splitter.addWidget(video_outer)
-        content_splitter.setStretchFactor(0, 0)  # left panel: fixed width
-        content_splitter.setStretchFactor(1, 1)  # right: fills remaining space
+        content_splitter.setStretchFactor(0, 0)
+        content_splitter.setStretchFactor(1, 1)
         det_layout.addWidget(content_splitter)
         return det_tab
+
+    # ── Parameter helpers ─────────────────────────────────────────────────────
+    def _param_summary_text(self) -> str:
+        n = len(self.active_angles)
+        return (
+            f"Interval: {self.spatial_interval}m\n"
+            f"Angles: {n}/{len(ALL_ANGLES)}"
+        )
+
+    def _show_config_dialog(self):
+        dlg = QDialog(self)
+        dlg.setWindowTitle("360° Pipeline Configuration")
+        dlg.setMinimumWidth(380)
+        dlg.setStyleSheet(f"""
+            QDialog {{ background: {BG_DEEP}; color: {TXT_HI}; }}
+            QGroupBox {{
+                border: 1px solid {BORDER}; border-radius: 8px;
+                margin-top: 12px; padding: 14px 10px 10px;
+                background: {BG_PANEL}; font-weight: 700;
+                color: {TXT_MID}; font-size: 11px;
+            }}
+            QGroupBox::title {{
+                subcontrol-origin: margin; left: 12px; padding: 0 6px;
+            }}
+            QCheckBox {{ color: {TXT_HI}; font-size: 11px; spacing: 6px; padding: 3px 0; }}
+            QCheckBox::indicator {{
+                width: 16px; height: 16px; border-radius: 4px;
+                border: 1px solid {BORDER}; background: {BG_CARD};
+            }}
+            QCheckBox::indicator:checked {{
+                background: {ACCENT}; border-color: {ACCENT};
+            }}
+            QDoubleSpinBox {{
+                background: {BG_CARD}; color: {TXT_HI};
+                border: 1px solid {BORDER}; border-radius: 5px;
+                padding: 4px 8px; font-size: 12px;
+            }}
+            QLabel {{ color: {TXT_MID}; font-size: 11px; }}
+            QPushButton {{
+                background: {ACCENT}; color: #fff; border: none;
+                border-radius: 6px; padding: 8px 20px; font-weight: 600;
+            }}
+            QPushButton:hover {{ background: #1a8ad4; }}
+        """)
+        lay = QVBoxLayout(dlg)
+        lay.setSpacing(12)
+        lay.setContentsMargins(16, 16, 16, 16)
+
+        # Interval
+        int_grp = QGroupBox("📏  Spatial Interval")
+        ig = QVBoxLayout(int_grp)
+        desc = QLabel("Distance between panorama captures along the GPS track.")
+        desc.setWordWrap(True)
+        ig.addWidget(desc)
+        interval_spin = QDoubleSpinBox()
+        interval_spin.setRange(1.0, 500.0)
+        interval_spin.setValue(self.spatial_interval)
+        interval_spin.setSuffix("  metres")
+        interval_spin.setDecimals(1)
+        ig.addWidget(interval_spin)
+        lay.addWidget(int_grp)
+
+        # Angles
+        ang_grp = QGroupBox("🔄  Active Perspective Angles")
+        ag = QVBoxLayout(ang_grp)
+        angle_checks = {}
+        for angle in ALL_ANGLES:
+            yaw = PERSPECTIVE_YAWS[angle]
+            cb = QCheckBox(f"{angle}  ({yaw:+d}°)")
+            cb.setChecked(angle in self.active_angles)
+            ag.addWidget(cb)
+            angle_checks[angle] = cb
+        lay.addWidget(ang_grp)
+
+        # Buttons
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_ok = QPushButton("Apply")
+        btn_cancel = QPushButton("Cancel")
+        btn_cancel.setStyleSheet(
+            f"background:{BG_CARD}; color:{TXT_HI}; border:1px solid {BORDER};"
+        )
+        btn_ok.clicked.connect(dlg.accept)
+        btn_cancel.clicked.connect(dlg.reject)
+        btn_row.addWidget(btn_cancel)
+        btn_row.addWidget(btn_ok)
+        lay.addLayout(btn_row)
+
+        if dlg.exec_() == QDialog.Accepted:
+            self.spatial_interval = interval_spin.value()
+            self.active_angles = [a for a, cb in angle_checks.items() if cb.isChecked()]
+            if not self.active_angles:
+                self.active_angles = list(ALL_ANGLES)
+            self._param_summary.setText(self._param_summary_text())
+
+    def _load_gps_csv(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Select GPS CSV", "",
+            "CSV Files (*.csv *.tsv *.txt);;All Files (*)",
+        )
+        if path:
+            self.gps_csv_path = path
+            fname = os.path.basename(path)
+            self.log_message(f"GPS CSV loaded: {fname}")
+            current = self.vid_info.text()
+            self.vid_info.setText(current + f"\n🛰️ {fname}")
+            self._update_start_button()
 
     # ── Leaflet map HTML ──────────────────────────────────────────────────────
     def _write_map_html(self):
@@ -593,15 +691,10 @@ function clearMarkers() {{
         except Exception as e:
             self.log_message(f"Map init error: {e}")
 
-    # ── Origin change ─────────────────────────────────────────────────────────
-    def _on_origin_changed(self):
-        self.gps_origin = (
-            self.origin_lat_spin.value(),
-            self.origin_lon_spin.value(),
-        )
-        self.gps_lbl.setText(
-            f"📍 Origin: {self.gps_origin[0]:.4f}, {self.gps_origin[1]:.4f}"
-        )
+    # ── Enable/disable start button ──────────────────────────────────────────
+    def _update_start_button(self):
+        ready = bool(self.video_path and self.gps_csv_path and self.output_folder)
+        self.btn_process.setEnabled(ready)
 
     def update_map_marker_color(
         self, marker_id: int, color: str, classification: str,
@@ -618,14 +711,14 @@ function clearMarkers() {{
     # ── Video I/O ─────────────────────────────────────────────────────────────
     def load_video(self):
         path, _ = QFileDialog.getOpenFileName(
-            self, "Select Video", "",
-            "Video Files (*.mp4 *.avi *.mov *.mkv *.wmv *.m4v);;All Files (*)",
+            self, "Select 360° Video", "",
+            "Video Files (*.mp4 *.360 *.avi *.mov *.mkv);;All Files (*)",
         )
         if not path:
             return
         self.video_path = path
         fname = os.path.basename(path)
-        cap   = open_video(path)
+        cap = open_video(path)
         if cap.isOpened():
             fps   = cap.get(cv2.CAP_PROP_FPS) or 0.0
             total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -633,13 +726,6 @@ function clearMarkers() {{
             h     = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             ret, frame = cap.read()
             cap.release()
-            if fps > 0:
-                self.fps_spin.setValue(min(round(fps), 30))
-                self.native_fps_lbl.setText(
-                    f"FPS: {fps:.2f}  |  {total} frames  |  {w}×{h}"
-                )
-            else:
-                self.native_fps_lbl.setText("FPS: unknown — defaulting to 30")
             self.vid_info.setText(fname)
             self.log_message(
                 f"Loaded: {fname}  ({w}×{h}, {fps:.1f} fps, {total} frames)"
@@ -651,9 +737,9 @@ function clearMarkers() {{
             self.vid_info.setText(f"⚠️ {fname}")
             self.log_message(
                 f"⚠️  Could not open '{fname}'. "
-                "AVI/MKV files need OpenCV with FFMPEG. Try converting to MP4."
+                "Check ffmpeg / OpenCV FFMPEG support."
             )
-        self.btn_process.setEnabled(True)
+        self._update_start_button()
 
     def _browse_checkpoint(self):
         path, _ = QFileDialog.getOpenFileName(
@@ -671,16 +757,20 @@ function clearMarkers() {{
             parts = Path(folder).parts
             short = os.sep.join(parts[-2:]) if len(parts) >= 2 else folder
             self.vid_info.setText(self.vid_info.text() + f"\n📁 …/{short}")
+            self._update_start_button()
 
     # ── Processing ────────────────────────────────────────────────────────────
     def start_processing(self):
         if not self.video_path:
-            self.log_message("Error: load a video first."); return
+            self.log_message("Error: load a 360° video first."); return
+        if not self.gps_csv_path:
+            self.log_message("Error: load a GPS CSV first."); return
         if not self.output_folder:
             self.log_message("Error: select an output folder first."); return
 
         self.btn_process.setEnabled(False)
         self.btn_load_video.setEnabled(False)
+        self.btn_load_gps.setEnabled(False)
         self.btn_stop.setEnabled(True)
         self.det_table.setRowCount(0)
         self.detections = []
@@ -689,23 +779,23 @@ function clearMarkers() {{
         self.web_view.page().runJavaScript(
             "if(typeof clearMarkers==='function') clearMarkers();"
         )
-        for sub in ("crops", "duplicates", "originals"):
-            os.makedirs(os.path.join(self.output_folder, sub), exist_ok=True)
 
-        chkpt  = self.chkpt_edit.text().strip() or self.checkpoint_path
-        origin = (self.origin_lat_spin.value(), self.origin_lon_spin.value())
+        chkpt = self.chkpt_edit.text().strip() or self.checkpoint_path
 
-        self.video_processor = VideoProcessor(
-            self.video_path, chkpt, CLASS_NAMES,
-            detection_fps=self.fps_spin.value(),
-            gps_origin=origin,
+        self.pano_processor = PanoramicProcessor(
+            video_path=self.video_path,
+            gps_csv_path=self.gps_csv_path,
+            output_dir=self.output_folder,
+            checkpoint_path=chkpt,
+            spatial_interval_m=self.spatial_interval,
+            active_angles=self.active_angles,
         )
-        self.video_processor.output_folder = self.output_folder
-        self.video_processor.crops_dir     = os.path.join(self.output_folder, "crops")
-        self.video_processor.dup_dir       = os.path.join(self.output_folder, "duplicates")
-        self.video_processor.orig_dir      = os.path.join(self.output_folder, "originals")
 
-        self.video_label.setText("⚙️  Processing…  detection + classification running")
+        self.video_label.setText(
+            "⚙️  360° Pipeline running…\n"
+            f"Interval: {self.spatial_interval}m  |  "
+            f"Angles: {len(self.active_angles)}"
+        )
         self.video_label.setPixmap(QPixmap())
         self.playback_controls.setVisible(False)
         if self.playback_cap:
@@ -713,23 +803,51 @@ function clearMarkers() {{
             self.playback_cap = None
         self.playback_timer.stop()
 
-        self.video_processor.frame_ready.connect(self._on_frame)
-        self.video_processor.detection_made.connect(self._add_detection)
-        self.video_processor.status_update.connect(self.log_message)
-        self.video_processor.progress_update.connect(self._on_progress)
-        self.video_processor.finished.connect(self._on_processing_finished)
-        self.video_processor.start()
+        self.pano_processor.status_update.connect(self.log_message)
+        self.pano_processor.progress_update.connect(self._on_progress)
+        self.pano_processor.step_changed.connect(self._on_step_changed)
+        self.pano_processor.finished_ok.connect(self._on_pano_finished_ok)
+        self.pano_processor.finished_err.connect(self._on_pano_finished_err)
+        self.pano_processor.start()
+        self.pipeline_status.setText("⏳ Initialising…")
         self.log_message(
-            f"Started — detection at {self.fps_spin.value()} fps  |  "
-            f"GPS origin: {origin[0]:.4f}, {origin[1]:.4f}"
+            f"Started 360° pipeline  |  interval={self.spatial_interval}m  |  "
+            f"angles={self.active_angles}"
         )
 
     def stop_processing(self):
+        if self.pano_processor and self.pano_processor.isRunning():
+            self.pano_processor.stop()
+            self.pano_processor.wait(5000)
+            self.log_message("Pipeline stopped by user.")
         if self.video_processor and self.video_processor.isRunning():
             self.video_processor.stop()
             self.video_processor.wait(3000)
-            self.log_message("Processing stopped by user.")
         self._reset_ui()
+        self.pipeline_status.setText("⏹ Stopped")
+
+    @pyqtSlot(int, str)
+    def _on_step_changed(self, step: int, desc: str):
+        icons = {1: "📽️", 2: "🔍", 3: "✅"}
+        self.pipeline_status.setText(f"{icons.get(step, '▶')} Step {step}: {desc}")
+        self.video_label.setText(f"Step {step}/2 — {desc}")
+
+    def _on_pano_finished_ok(self, output_dir: str):
+        self._reset_ui()
+        self.pipeline_status.setText("✅ Complete")
+        self.log_message(f"✅ 360° pipeline complete. Output: {output_dir}")
+        import glob
+        xlsx = glob.glob(os.path.join(output_dir, '*.xlsx'))
+        geojson = glob.glob(os.path.join(output_dir, '*.geojson'))
+        if xlsx:
+            self.log_message(f"📊 Excel: {os.path.basename(xlsx[0])}")
+        if geojson:
+            self.log_message(f"🗺️ GeoJSON: {os.path.basename(geojson[0])}")
+
+    def _on_pano_finished_err(self, err_msg: str):
+        self._reset_ui()
+        self.pipeline_status.setText("❌ Error")
+        self.log_message(f"❌ Pipeline error:\n{err_msg}")
 
     @pyqtSlot(int)
     def _on_progress(self, val: int):
@@ -761,9 +879,10 @@ function clearMarkers() {{
             self._start_playback(self.video_path)
 
     def _reset_ui(self):
-        self.btn_process.setEnabled(True)
         self.btn_load_video.setEnabled(True)
+        self.btn_load_gps.setEnabled(True)
         self.btn_stop.setEnabled(False)
+        self._update_start_button()
 
     # ── Playback ──────────────────────────────────────────────────────────────
     def _start_playback(self, path: str) -> bool:
@@ -905,6 +1024,9 @@ function clearMarkers() {{
         sb.setValue(sb.maximum())
 
     def closeEvent(self, event):
+        if self.pano_processor and self.pano_processor.isRunning():
+            self.pano_processor.stop()
+            self.pano_processor.wait(5000)
         if self.video_processor and self.video_processor.isRunning():
             self.video_processor.stop()
             self.video_processor.wait(3000)

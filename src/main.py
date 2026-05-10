@@ -115,7 +115,7 @@ from api_window import ApiWindow
 # from classification import ClassificationWindow (loaded by SplitProcessingWindow)
 # from duplicates import DuplicatesWindow  (loaded by SplitProcessingWindow)
 from model_training import Trainer
-from rapid_scan_window import RapidScanWindow
+from ui.rapid_scan_window import RapidScanWindow
 from results_window import ResultsWindow
 logger.log_status(f'Time taken to import modules: {time.time()-a}.')
 
@@ -175,8 +175,9 @@ class MainApp(QMainWindow):
         self.add_tab(RapidScanWindow, "Risk Assessment")
 
         # ── 3D Reconstruction: NodeODM / WebODM drone photogrammetry ──
-        from rapidscan.odm_tab import ODMTab
-        self.add_tab(ODMTab, "3D Reconstruction")
+        # HIDDEN: keeping code intact but hiding the tab from the UI
+        # from ui.odm_tab import ODMTab
+        # self.add_tab(ODMTab, "3D Reconstruction")
         
         layout.addWidget(self.tabs, 7)
 

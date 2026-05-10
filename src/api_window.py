@@ -13,9 +13,9 @@ import json
 from config_ import Config
 import requests
 import os, json
-import sqlite3
+from services.database import MetadataDatabase
 import math
-from tile_downloader import download_panorama
+from templates import render_template
 from dotenv import load_dotenv
 from utils import resolve_path
 from pathlib import Path
@@ -42,116 +42,14 @@ class PlaceReceiver(QObject):
         # place_data contains: name, address, lat, lng, bounds
         self.placeSelected.emit(place_data)
 
-class PanoramaFetcher(QThread):
-    """Background thread for fetching panorama metadata from Google API"""
-    progress = pyqtSignal(int, int)  # current, total
-    finished = pyqtSignal(list)  # list of (lat, lon, pano_id) tuples
-    error = pyqtSignal(str)
 
-    def __init__(self, grid_points, api_key, logger: Logger):
-        super().__init__()
-        self.grid_points = grid_points
-        self.api_key = api_key
-        self.logger = logger
+# PanoramaFetcher has been extracted to workers/panorama_fetcher.py
+from workers.panorama_fetcher import PanoramaFetcher  # noqa: F401
 
-    def fetch_single_point(self, lat, lon):
-        """Fetch metadata for a single point"""
-        try:
-            api_url = "https://maps.googleapis.com/maps/api/streetview/metadata"
-            params = {
-                "location": f"{lat},{lon}",
-                "key": self.api_key
-            }
-            
-            response = requests.get(api_url, params=params, timeout=5)
-            
-            if response.status_code == 200:
-                metadata = response.json()
-                if metadata.get('status') == 'OK':
-                    # Return full metadata for the UI
-                    return {
-                        'location': metadata['location'],
-                        'panoId': metadata.get('pano_id', ''),
-                        'date': metadata.get('date', ''),
-                        'copyright': metadata.get('copyright', ''),
-                        'status': metadata.get('status', '')
-                    }
-            return None
-        except Exception as e:
-            self.logger.log_exception(f"API request failed for ({lat}, {lon}): {e}")
-            return None
 
-    def run(self):
-        try:
-            results = []
-            total = len(self.grid_points)
-            completed = 0
-            
-            self.logger.log_status(f"Fetching panoramas from Google API for {total} points (parallel mode)...")
-            
-            # Use ThreadPoolExecutor for parallel requests (10 workers for good balance)
-            from concurrent.futures import ThreadPoolExecutor, as_completed
-            
-            with ThreadPoolExecutor(max_workers=10) as executor:
-                # Submit all tasks
-                future_to_point = {
-                    executor.submit(self.fetch_single_point, lat, lon): (lat, lon)
-                    for lat, lon in self.grid_points
-                }
-                
-                # Process completed tasks
-                for future in as_completed(future_to_point):
-                    result = future.result()
-                    if result:
-                        results.append(result)
-                    
-                    completed += 1
-                    # Emit progress every 10 requests or on completion
-                    if completed % 10 == 0 or completed == total:
-                        self.progress.emit(completed, total)
-            
-            self.logger.log_status(f"Found {len(results)} panoramas from Google API")
-            self.finished.emit(results)
-            
-        except Exception as e:
-            self.logger.log_exception(f"Panorama fetcher thread failed: {e}")
-            self.error.emit(str(e))
 
-class StreetViewDownloader(QThread):
-    progress = pyqtSignal(int, int)  # current, total
-    finished = pyqtSignal()
-
-    def __init__(self, output_dir, max_images, logger: Logger, config: Config, FOUND_COORDS: list[tuple[float,float]]):
-        super().__init__()
-        self.coords = FOUND_COORDS
-        self.api_key = os.getenv("API_KEY") #api_key
-        self.config = config
-        self.region = self.config.get_general_data()["region"]
-        self.output_dir = output_dir
-        self.max_images = max_images
-        self.logger = logger
-
-    def run(self):
-        try:
-            total = len(self.coords)
-            count = 0
-            for i, (lat, lng, pan_id) in enumerate(self.coords, 1):
-                if self.max_images and count >= self.max_images:
-                    self.logger.log_status(f"Reached max_images limit: {self.max_images}")
-                    break
-                try:
-                    self.logger.log_status(f"Requesting Street View for ({lat}, {lng})")
-                    download_panorama(pano_id=pan_id, save_dir=self.output_dir, coords=(lat, lng))
-                    count += 1
-                    self.logger.log_status(f"Saved image {self.region}_{lat}_{lng}")
-                except Exception as e:
-                    self.logger.log_exception(f"Failed to download at ({lat},{lng}): {e}")
-                self.progress.emit(i, total)
-            self.logger.log_status("Street View download finished")
-        except Exception as e:
-            self.logger.log_exception(f"Downloader thread failed: {e}")
-        finally:
-            self.finished.emit()
+# StreetViewDownloader has been extracted to workers/streetview_downloader.py
+from workers.streetview_downloader import StreetViewDownloader  # noqa: F401
 
 class CustomWebPage(QWebEnginePage):
     """Custom WebEnginePage to intercept and log JavaScript console messages"""
@@ -208,32 +106,8 @@ class ApiWindow(QWidget):
         }
         self.current_density = 'low'
         self.current_shape_coords = None  # Store selected area
-        
-        self.init_db()
+        self.db = MetadataDatabase(self.DB_PATH, self.logger)
         self.setup_ui()
-
-    def init_db(self):
-        """Initialize the database tables if they don't exist"""
-        try:
-            conn = sqlite3.connect(self.DB_PATH)
-            cur = conn.cursor()
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS coords (
-                    id INTEGER PRIMARY KEY,
-                    lat REAL, lon REAL,
-                    stage TEXT, scanned INTEGER DEFAULT 0
-                )""")
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS results (
-                    coord_id INTEGER, pano_id TEXT,
-                    FOREIGN KEY(coord_id) REFERENCES coords(id)
-                )""")
-            conn.commit()
-            conn.close()
-            self.logger.log_status(f"Database initialized at {self.DB_PATH}")
-        except Exception as e:
-            self.logger.log_exception(f"Failed to initialize database: {e}")
-    
     def get_region_db_path(self) -> str:
         """
         Get the path to the region-specific metadata database.
@@ -934,24 +808,7 @@ class ApiWindow(QWidget):
 
     def query_results(self, db_path, north, south, east, west):
         """Query panorama results from database within bounding box"""
-        try:
-            conn = sqlite3.connect(db_path)
-            cur = conn.cursor()
-
-            query = """
-                SELECT c.lat, c.lon, r.pano_id
-                FROM coords c
-                JOIN results r ON c.id = r.coord_id
-                WHERE c.lat <= ? AND c.lat >= ? AND c.lon <= ? AND c.lon >= ?
-            """
-            cur.execute(query, (north, south, east, west))
-            results = cur.fetchall()
-            conn.close()
-            self.logger.log_status(f"Found {len(results)} results from database")
-            return results
-        except Exception as e:
-            self.logger.log_exception(f"Database query failed: {e}")
-            return []
+        return self.db.query_results(north, south, east, west)
     
     def get_current_crawling_distance(self):
         """Get current crawling distance in meters based on density selection"""
@@ -1082,355 +939,13 @@ class ApiWindow(QWidget):
             icon_url = "http://maps.google.com/mapfiles/ms/icons/blue-dot.png"
         
         # Load Google Maps HTML with JS selection tools
-        html = f"""
-<!DOCTYPE html>
-<html>
-<head>
-  <meta name="viewport" content="initial-scale=1.0, user-scalable=yes" />
-  <style>
-    html, body, #map {{ height: 100%; margin: 0; padding: 0 }}
-    .controls {{
-        margin-top: 10px;
-        border: 1px solid transparent;
-        border-radius: 2px 0 0 2px;
-        box-sizing: border-box;
-        -moz-box-sizing: border-box;
-        height: 32px;
-        outline: none;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    }}
-
-    #pac-input {{
-        background-color: #fff;
-        font-family: Roboto;
-        font-size: 15px;
-        font-weight: 400;
-        margin-left: 12px;
-        padding: 0 11px 0 13px;
-        text-overflow: ellipsis;
-        width: 350px;
-        height: 40px;
-        line-height: 40px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2), 0 -1px 0px rgba(0,0,0,0.02);
-        border: none;
-    }}
-
-    #pac-input:focus {{
-        border-color: #4d90fe;
-    }}
-    
-    .pac-container {{
-        z-index: 10000 !important;
-        background-color: #fff;
-        border-top: 1px solid #d9d9d9;
-        font-family: Roboto, Arial, sans-serif;
-        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-        border-radius: 0 0 8px 8px;
-        margin-top: 5px;
-    }}
-    
-    .pac-item {{
-        cursor: default;
-        padding: 0 4px;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        white-space: nowrap;
-        line-height: 30px;
-        text-align: left;
-        border-top: 1px solid #e6e6e6;
-        font-size: 11px;
-        color: #999;
-    }}
-    
-    .pac-item:hover {{
-        background-color: #fafafa;
-    }}
-    
-    .pac-item-query {{
-        font-size: 13px;
-        color: #000;
-        padding-right: 3px;
-    }}
-  </style>
-  <script src="qrc:///qtwebchannel/qwebchannel.js"></script>
-  <script>
-    let map, drawingManager, shapes=[];
-    let autocomplete;
-    
-    // Cache management functions for persistent map state
-    function saveMapState() {{
-        try {{
-            const state = {{
-                center: {{ lat: map.getCenter().lat(), lng: map.getCenter().lng() }},
-                zoom: map.getZoom(),
-                mapType: map.getMapTypeId(),
-                timestamp: Date.now()
-            }};
-            localStorage.setItem('riskmap_state', JSON.stringify(state));
-            console.log('Map state saved to cache');
-        }} catch (e) {{
-            console.error('Failed to save map state:', e);
-        }}
-    }}
-    
-    function loadMapState() {{
-        try {{
-            const cached = localStorage.getItem('riskmap_state');
-            if (cached) {{
-                const state = JSON.parse(cached);
-                console.log('Loaded cached map state:', state);
-                return state;
-            }}
-        }} catch (e) {{
-            console.error('Failed to load cached state:', e);
-        }}
-        return null;
-    }}
-    
-    function initMap() {{
-        console.log('initMap called');
-        
-        if (typeof google === 'undefined') {{
-            console.error('Google Maps API not loaded!');
-            setTimeout(initMap, 500); // Retry after 500ms
-            return;
-        }}
-        
-        console.log('Google Maps API loaded successfully');
-        const aizawlBounds = {self.map_bounds};
-        
-        // Try to restore from cache
-        const cachedState = loadMapState();
-
-        try {{
-            map = new google.maps.Map(document.getElementById('map'), {{
-                center: cachedState?.center || {self.map_centre}, 
-                zoom: cachedState?.zoom || 11,
-                minZoom: 1,
-                maxZoom: 20,
-                mapTypeId: cachedState?.mapType || google.maps.MapTypeId.ROADMAP,
-                mapTypeControl: true,
-                mapTypeControlOptions: {{
-                    style: google.maps.MapTypeControlStyle.HORIZONTAL_BAR,
-                    position: google.maps.ControlPosition.TOP_RIGHT,
-                    mapTypeIds: ['roadmap', 'satellite', 'hybrid', 'terrain']
-                }},
-                streetViewControl: false,
-                fullscreenControl: true
-            }});
-            
-            // Add tile load listener
-            google.maps.event.addListener(map, 'tilesloaded', function() {{
-                console.log('Map tiles loaded successfully');
-            }});
-            
-            // Auto-save map state on changes (debounced)
-            let saveTimeout;
-            google.maps.event.addListener(map, 'idle', function() {{
-                console.log('Map is idle and ready');
-                // Debounce save to avoid excessive writes
-                clearTimeout(saveTimeout);
-                saveTimeout = setTimeout(saveMapState, 500);
-            }});
-
-            drawingManager = new google.maps.drawing.DrawingManager({{
-                drawingMode: null,
-                drawingControl: false,
-                drawingControlOptions: {{
-                    drawingModes: ['rectangle', 'circle', 'polygon']
-                }}
-            }});
-
-            drawingManager.setMap(map);
-
-            google.maps.event.addListener(drawingManager, 'overlaycomplete', function(e) {{
-                shapes.push(e.overlay);
-                let coords = [];
-                if (e.type === 'circle') {{
-                    let center = e.overlay.getCenter(); coords.push([center.lat(), center.lng()]);
-                }} else if (e.type === 'rectangle') {{
-                    let bounds = e.overlay.getBounds();
-                    let ne = bounds.getNorthEast(), sw = bounds.getSouthWest();
-                    coords = [[ne.lat(), ne.lng()], [sw.lat(), sw.lng()]];
-                }} else if (e.type === 'polygon') {{
-                    e.overlay.getPath().forEach(pt => coords.push([pt.lat(), pt.lng()]));
-                }}
-                new QWebChannel(qt.webChannelTransport, channel => {{
-                    channel.objects.coordReceiver.receiveCoordinates(coords);
-                }});
-            }});
-            
-            console.log('Map initialized successfully');
-            
-            // Add Street View coverage layer to show where panoramas are available
-            const streetViewLayer = new google.maps.StreetViewCoverageLayer();
-            streetViewLayer.setMap(map);
-            console.log('Street View coverage layer added');
-            
-            // Initialize Google Places Autocomplete after map loads
-            initAutocomplete();
-        }} catch (error) {{
-            console.error('Error initializing map:', error);
-        }}
-    }}
-    
-    function initAutocomplete() {{
-        console.log('Initializing Places Autocomplete');
-        
-        // Wait for map and library
-        setTimeout(function() {{
-            try {{
-                if (!google.maps.places) {{
-                    console.error('Google Maps Places library is NOT loaded. Check API key and libraries parameter.');
-                    return;
-                }}
-
-                let input = document.getElementById('pac-input');
-                if (!input) {{
-                   // Create if missing
-                   input = document.createElement('input');
-                   input.id = 'pac-input';
-                   input.className = 'controls';
-                   input.type = 'text';
-                   input.placeholder = 'Search Google Maps';
-                   map.controls[google.maps.ControlPosition.TOP_LEFT].push(input);
-                }}
-
-                // Use 'input' variable DIRECTLY. Do not re-query 'getElementById' immediately.
-                const searchInput = input;
-
-                // Wait for element to be "pushed" to map controls (small delay)
-                setTimeout(function() {{
-                    // Initialize autocomplete
-                    autocomplete = new google.maps.places.Autocomplete(searchInput, {{
-                        fields: ['geometry', 'name', 'formatted_address']
-                    }});
-                    
-                    autocomplete.bindTo('bounds', map);
-                    
-                    autocomplete.addListener('place_changed', function() {{
-                        // ... existing handler logic ...
-                        const place = autocomplete.getPlace();
-                        console.log('Place selected (raw): ' + JSON.stringify(place));
-
-                        if (!place.geometry || !place.geometry.location) {{
-                            console.log('No geometry for place. User might have hit Enter without selecting suggestion.');
-                            
-                            // Fallback: Geocode the name or query
-                            const query = place.name || searchInput.value;
-                            if (query) {{
-                                console.log('Attempting Geocode fallback for: ' + query);
-                                const geocoder = new google.maps.Geocoder();
-                                geocoder.geocode({{ 'address': query }}, function(results, status) {{
-                                    if (status === 'OK' && results[0]) {{
-                                        console.log('Geocode successful');
-                                        processPlace(results[0]);
-                                    }} else {{
-                                        console.error('Geocode fallback failed: ' + status);
-                                    }}
-                                }});
-                            }}
-                            return;
-                        }}
-                        
-                        processPlace(place);
-                    }});
-                    
-                }}, 200);
-                
-                function processPlace(place) {{
-                    console.log('Processing place: ' + place.name || place.formatted_address);
-                    
-                    if (place.geometry.viewport) {{
-                        map.fitBounds(place.geometry.viewport);
-                    }} else {{
-                        map.setCenter(place.geometry.location);
-                        map.setZoom(13);
-                    }}
-                    
-                    setTimeout(function() {{
-                        const bounds = map.getBounds();
-                        if (bounds) {{
-                            const placeData = {{
-                                name: place.name || '',
-                                address: place.formatted_address || '',
-                                lat: place.geometry.location.lat(),
-                                lng: place.geometry.location.lng(),
-                                north: bounds.getNorthEast().lat(),
-                                south: bounds.getSouthWest().lat(),
-                                east: bounds.getNorthEast().lng(),
-                                west: bounds.getSouthWest().lng()
-                            }};
-                            
-                            new QWebChannel(qt.webChannelTransport, function(channel) {{
-                                channel.objects.placeReceiver.receivePlaceData(placeData);
-                            }});
-                        }}
-                    }}, 500);
-                }}
-                
-                console.log('Autocomplete initialized successfully');
-            }} catch (error) {{
-                console.error('Error initializing autocomplete:', error);
-            }}
-        }}, 1000);
-    }}
-    
-    // ... Helper functions ...
-    function enableRectangle() {{ drawingManager.setDrawingMode(google.maps.drawing.OverlayType.RECTANGLE); }}
-    function enableCircle() {{ drawingManager.setDrawingMode(google.maps.drawing.OverlayType.CIRCLE); }}
-    function enablePolygon() {{ drawingManager.setDrawingMode(google.maps.drawing.OverlayType.POLYGON); }}
-    function enableHand() {{ drawingManager.setDrawingMode(null); }}
-    
-    function toggleMapType() {{
-        if (map.getMapTypeId() === 'satellite') {{
-            map.setMapTypeId('roadmap');
-            console.log('Switched to roadmap');
-        }} else {{
-            map.setMapTypeId('satellite');
-            console.log('Switched to satellite');
-        }}
-    }}
-    
-    var markers = [];
-    function addMarker(lat, lng) {{
-        var marker = new google.maps.Marker({{
-            position: {{lat: lat, lng: lng}},
-            map: map,
-            icon: {{
-                url: '{icon_url}',
-                scaledSize: new google.maps.Size(32, 32),
-                anchor: new google.maps.Point(16, 32)
-            }},
-            title: 'Panorama Location'
-        }});
-        markers.push(marker);
-    }}
-    function clearMarkers() {{
-        markers.forEach(m => m.setMap(null));
-        markers = [];
-    }}
-    function fitBounds(minLat, minLng, maxLat, maxLng) {{
-        var bounds = new google.maps.LatLngBounds(
-            new google.maps.LatLng(minLat, minLng),
-            new google.maps.LatLng(maxLat, maxLng)
-        );
-        map.fitBounds(bounds);
-    }}
-
-    function clearSelection() {{ 
-        shapes.forEach(s=>s.setMap(null)); 
-        shapes=[]; 
-        clearMarkers();
-    }}
-  </script>
-  <script async defer src="https://maps.googleapis.com/maps/api/js?key={self.api_key}&libraries=drawing,places&loading=async&callback=initMap"></script>
-</head>
-<body>
-  <div id="map"></div>
-</body>
-</html>"""
+        html = render_template(
+            "api_map.html",
+            MAP_BOUNDS=json.dumps(self.map_bounds),
+            MAP_CENTRE=json.dumps(self.map_centre),
+            ICON_URL=icon_url,
+            API_KEY=self.api_key,
+        )
         from PyQt5.QtCore import QUrl
         self.view.setHtml(html, baseUrl=QUrl("http://localhost/"))
         self.logger.log_status("Map initialized")
