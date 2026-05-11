@@ -48,6 +48,14 @@ class RateLimiter:
                 self.allowance -= 1
                 return True
 
+class ScanThread(QThread):
+    def __init__(self, scanner_widget):
+        super().__init__()
+        self.widget = scanner_widget
+
+    def run(self):
+        self.widget.scan_loop()
+
 class StreetViewDensityScanner(QWidget):
     update_ui_signal = pyqtSignal(bool)
 
@@ -57,6 +65,7 @@ class StreetViewDensityScanner(QWidget):
         self.setWindowTitle("Street View Density-Based Scanner")
         self.init_ui()
         self.scanning = False
+        self.db_lock = threading.Lock()
         self.update_ui_signal.connect(self.update_status_ui)
 
     def init_ui(self):
@@ -107,7 +116,7 @@ class StreetViewDensityScanner(QWidget):
         self.map_view = QWebEngineView()
 
         global config
-        self.map_file = config.get_download_data()["folder_name"] + f'\{self.city}_map.html'
+        self.map_file = os.path.join(config.get_download_data()["folder_name"], f'{self.city}_map.html')
         layout.addWidget(self.map_view, stretch=1)
 
         self.setLayout(layout)
@@ -184,30 +193,29 @@ class StreetViewDensityScanner(QWidget):
         self.timer.timeout.connect(lambda: self.update_ui_signal.emit(False))
         self.timer.start(2000)
 
-        self.thread = QThread()
-        self.thread.run = lambda: self.scan_loop()  # attach your function to QThread
-        self.thread.finished.connect(self.thread.deleteLater)
-        self.thread.start()
+        self.scan_thread = ScanThread(self)
+        self.scan_thread.finished.connect(self.scan_thread.deleteLater)
+        self.scan_thread.start()
 
-    def scan_loop(widget):
+    def scan_loop(self):
         while True:
-            conn = sqlite3.connect(widget.db_path)
+            conn = sqlite3.connect(self.db_path)
             cur = conn.cursor()
-            cur.execute("SELECT id,lat,lon,stage FROM coords WHERE scanned=0 ORDER BY stage DESC LIMIT ?", (widget.max_workers * 2,))
+            cur.execute("SELECT id,lat,lon,stage FROM coords WHERE scanned=0 ORDER BY stage DESC LIMIT ?", (self.max_workers * 2,))
             batch = cur.fetchall()
             conn.close()
             if not batch:
                 break
 
-            with ThreadPoolExecutor(max_workers=widget.max_workers) as ex:
+            with ThreadPoolExecutor(max_workers=self.max_workers) as ex:
                 for cid, lat, lon, stage in batch:
-                    ex.submit(widget.fetch_and_store, cid, lat, lon, stage)
+                    ex.submit(self.fetch_and_store, cid, lat, lon, stage)
 
             # update UI after batch
-            widget.update_ui_signal.emit(False)
+            self.update_ui_signal.emit(False)
 
-        widget.scanning = False
-        widget.update_ui_signal.emit(True)
+        self.scanning = False
+        self.update_ui_signal.emit(True)
         
 
     def update_status_ui(self, final):
@@ -224,7 +232,7 @@ class StreetViewDensityScanner(QWidget):
         try:
             size = os.path.getsize(self.db_path)
             self.size_label.setText(f"DB Size: {size/1e6:.2f} MB")
-        except:
+        except Exception:
             self.size_label.setText("DB Size: N/A")
 
         conn.close()
@@ -245,24 +253,22 @@ class StreetViewDensityScanner(QWidget):
             time.sleep(0.1)  # backoff or yield
         
         data = self.safe_get(lat=lat, lon=lon).json()
-        conn = sqlite3.connect(self.db_path)
-        cur = conn.cursor()
-        cur.execute("UPDATE coords SET scanned=1 WHERE id=?", (coord_id,))
-        print("Got to before data.get")
-        if data.get("status")=="OK":
-            print("Found one atleast")
-            cur.execute("INSERT INTO results(coord_id,pano_id) VALUES(?,?)", (coord_id, data.get("pano_id")))
-            if stage=='coarse':
-                for dlat in (-FINE_SPACING, 0, FINE_SPACING):
-                    for dlon in (-FINE_SPACING, 0, FINE_SPACING):
-                        if dlat==0 and dlon==0: continue
-                        cur.execute("INSERT INTO coords(lat,lon,stage) VALUES(?,?,?)", (lat+dlat, lon+dlon, 'fine'))
-                        print("Found one in fine")
-        
-        cur.execute("INSERT INTO responses(coord_id,response) VALUES(?,?)", (coord_id, data.get("status")))
-        
-        conn.commit()
-        conn.close()
+        with self.db_lock:
+            conn = sqlite3.connect(self.db_path)
+            cur = conn.cursor()
+            cur.execute("UPDATE coords SET scanned=1 WHERE id=?", (coord_id,))
+            if data.get("status")=="OK":
+                cur.execute("INSERT INTO results(coord_id,pano_id) VALUES(?,?)", (coord_id, data.get("pano_id")))
+                if stage=='coarse':
+                    for dlat in (-FINE_SPACING, 0, FINE_SPACING):
+                        for dlon in (-FINE_SPACING, 0, FINE_SPACING):
+                            if dlat==0 and dlon==0: continue
+                            cur.execute("INSERT INTO coords(lat,lon,stage) VALUES(?,?,?)", (lat+dlat, lon+dlon, 'fine'))
+            
+            cur.execute("INSERT INTO responses(coord_id,response) VALUES(?,?)", (coord_id, data.get("status")))
+            
+            conn.commit()
+            conn.close()
 
     def refresh_map(self):
         conn = sqlite3.connect(self.db_path)

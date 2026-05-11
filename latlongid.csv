@@ -1,0 +1,799 @@
+id,lon,lat,classification,,custom_site_id
+1,83.31382,29.46117,RCC_H2 gable roof,,wh1zh8zx
+2,83.31382,29.23617,RCC_H2 gable roof,,wh1zhc4p
+3,83.53882,29.08617,RCC_H2 gable roof,,wh1zhvfb
+4,80.68882,28.93617,RCC_H2 gable roof,,wh1zhu59
+5,83.53882,29.01117,RCC_H2 gable roof,,wh1zhc5f
+6,81.13882,28.78617,RCC_H2 gable roof,,wh1zhghs
+7,83.98882,28.48617,RCC_H1 flat roof,,wh1zhcky
+8,83.23882,29.38617,RCC_H1 flat roof,,wh1zhfjj
+9,83.01382,29.08617,RCC_H1 flat roof,,wh1zhfv4
+10,83.31382,28.71117,RCC_H1 flat roof,,wh1zhcvk
+11,86.91382,27.73617,RCC_H1 flat roof,,wh1zhcw1
+12,83.16382,29.31117,RCC_H1 flat roof,,wh1zhfnm
+13,80.61382,28.93617,RCC_H1 flat roof,,wh1zhgn7
+14,83.91382,29.01117,RCC_H1 flat roof,,wh1zhgp1
+15,82.03882,30.28617,RCC_H1 flat roof,,wh1zhcp5
+16,83.38882,29.31117,RCC_H1 flat roof,,wh1zhgp3
+17,80.68882,28.86117,RCC_H3 flat roof,,wh1zhgp9
+18,83.46382,28.71117,RCC_H3 flat roof,,wh1zhgpe
+19,84.13882,28.41117,RCC_H3 flat roof,,wh1zhcrz
+20,83.08882,29.16117,RCC_H3 flat roof,,wh1zj50u
+21,84.13882,28.78617,RCC_H3 flat roof,,wh1zj4c1
+22,85.11382,28.33617,RCC_H3 flat roof,,wh1zj4ch
+23,84.06382,29.01117,RCC_H3 flat roof,,wh1zj4cp
+24,83.01382,29.61117,RCC_H3 flat roof,,wh1zj4cc
+25,86.83882,27.73617,RCC_H3 flat roof,,wh1zj49y
+26,84.36382,28.78617,RCC_H3 flat roof,,wh1zj4fz
+27,84.13882,28.56117,MR_H1 flat roof,,wh1zj54c
+28,83.16382,29.01117,MR_H1 flat roof,,wh1zj55e
+29,83.01382,29.23617,MR_H1 flat roof,,wh1zj5hs
+30,82.86382,28.86117,MR_H1 flat roof,,wh1zj4uy
+31,85.03882,28.56117,MR_H1 flat roof,,wh1zj5hc
+32,83.31382,28.78617,MR_H1 flat roof,,wh1zj5jc
+33,81.88882,28.18617,MR_H1 flat roof,,wh1zj4yp
+34,83.23882,29.31117,MR_H2 gable roof,,wh1zj5n3
+35,84.13882,29.16117,MR_H2 gable roof,,wh1zj5ng
+36,84.21382,28.78617,MR_H2 gable roof,,wh1zj5ny
+37,86.83882,27.96117,MR_H2 gable roof,,wh1zj5pp
+38,87.58882,27.73617,MR_H2 gable roof,,wh1zj5pr
+39,83.31382,28.93617,MR_H2 gable roof,,wh1zj5px
+40,81.96382,30.06117,MR_H2 gable roof,,wh1zj4zy
+41,82.93882,29.08617,MR_H2 gable roof,,wh1zj5py
+42,80.98882,28.78617,MR_H2 gable roof,,wh1zj6b1
+43,84.73882,28.48617,MR_H2 gable roof,,wh1zj6bc
+44,87.06382,27.73617,MR_H2 gable roof,,wh1zj6c8
+45,83.16382,29.23617,MR_H2 gable roof,,wh1zj6d4
+46,84.06382,28.41117,MR_H2 gable roof,,wh1zj6d6
+47,82.63882,29.76117,MR_H2 gable roof,,wh1zj66x
+48,83.46382,29.08617,MR_H2 gable roof,,wh1zj36f
+49,83.98882,28.41117,MR_H2 gable roof,,wh1zj35p
+50,85.03882,28.33617,MR_H2 gable roof,,wh1zj370
+51,87.06382,27.66117,MR_H2 gable roof,,wh1zj3e1
+52,81.88882,30.06117,MR_H2 gable roof,,wh1zj3gk
+53,83.91382,29.31117,MR_H2 gable roof,,wh1zj3et
+54,83.23882,29.01117,MR_H2 gable roof,,wh1zj3hh
+55,83.98882,28.78617,RCC_H4 gaqble roof,,wh1zj3hj
+56,82.11382,30.13617,RCC_H4 gaqble roof,,wh1zj3sh
+57,83.68882,28.93617,RCC_H4 gaqble roof,,wh1zj6h3
+58,83.91382,28.86117,RCC_H4 gaqble roof,,wh1zj3hk
+59,83.91382,28.71117,RCC_H4 gaqble roof,,wh1zj3kk
+60,83.91382,28.48617,RCC_H4 gaqble roof,,wh1zj3hd
+61,81.13882,29.83617,RCC_H4 gaqble roof,,wh1zj6hf
+62,83.08882,29.23617,RCC_H4 gaqble roof,,wh1zj6jw
+63,82.93882,28.86117,RCC_H4 gaqble roof,,wh1zj3jf
+64,84.06382,29.16117,RCC_H4 gaqble roof,,wh1zj3np
+65,83.23882,28.93617,RCC_H4 gaqble roof,,wh1zj3wh
+66,84.58882,27.43617,RCC_H4 gaqble roof,,wh1zj3wx
+67,87.13882,27.66117,RCC_H4 gaqble roof,,wh1zj6qd
+68,81.81382,30.28617,RCC_H4 gaqble roof,,wh1zj3zp
+69,82.78882,29.08617,RCC_H4 gaqble roof,,wh1zj2z2
+70,82.63882,27.73617,RCC_H4 gaqble roof,,wh1zj6ps
+71,82.71382,29.16117,RCC_H4 gaqble roof,,wh1yvw8p
+72,84.51382,28.48617,RCC_H4 gaqble roof,,wh1zjd0q
+73,83.01382,29.16117,RCC_H4 gaqble roof,,wh1zj82s
+74,81.36382,28.56117,RCC_H4 gaqble roof,,wh1zjd0u
+75,83.23882,29.23617,RCC_H4 gaqble roof,,wh1zjd0y
+76,84.13882,29.23617,RCC_H4 gaqble roof,,wh1yvw35
+77,82.03882,30.21117,RCC_H4 gaqble roof,,wh1yvx15
+78,83.01382,29.01117,RCC_H4 gaqble roof,,wh1zjd15
+79,82.63882,29.31117,RCC_H3 flat roof,,wh1yvw3e
+80,83.98882,29.08617,RCC_H3 flat roof,,wh1yvw3x
+81,88.03882,27.58617,RCC_H3 flat roof,,wh1yvw9c
+82,81.96382,30.28617,RCC_H3 flat roof,,wh1zjd1z
+83,82.78882,29.23617,RCC_H3 flat roof,,wh1yvw6q
+84,83.31382,29.01117,RCC_H3 flat roof,,wh1yvw6x
+85,84.96382,28.41117,RCC_H3 flat roof,,wh1yvw69
+86,82.78882,29.31117,RCC_H3 flat roof,,wh1yvwf9
+87,83.46382,29.01117,RCC_H3 flat roof,,wh1yvw4z
+88,81.51382,29.98617,RCC_H3 flat roof,,wh1yvwdc
+89,83.16382,29.53617,RCC_H3 flat roof,,wh1zj9fc
+90,83.61382,28.93617,RCC_H3 flat roof,,wh1zj9fz
+91,87.13882,27.73617,RCC_H3 flat roof,,wh1yvw5p
+92,81.43882,30.06117,RCC_H3 flat roof,,wh1yvwej
+93,83.91382,28.41117,RCC_H3 flat roof,,wh1zj9ej
+94,81.51382,30.28617,RCC_H3 flat roof,,wh1zj9ep
+95,82.18882,29.98617,RCC_H3 flat roof,,wh1yvwew
+96,82.56382,29.16117,RCC_H3 flat roof,,wh1zj9eu
+97,83.68882,28.63617,RCC_H3 flat roof,,wh1zj9ev
+98,87.58882,27.81117,RCC_H3 flat roof,,wh1zj9ev
+99,83.08882,29.31117,RCC_H3 flat roof,,wh1zj9h8
+100,87.51382,27.58617,RCC_H3 flat roof,,wh1yvwhy
+101,82.93882,29.61117,RCC_H3 flat roof,,wh1zj8uz
+102,84.28882,28.48617,RCC_H3 flat roof,,wh1zj9sf
+103,87.13882,27.81117,RCC_H3 flat roof,,wh1zj9sv
+104,81.58882,30.13617,RCC_H3 flat roof,,wh1zj8uz
+105,81.96382,30.13617,RCC_H3 flat roof,,wh1yv9th
+106,81.66382,30.13617,RCC_H3 flat roof,,wh1zj9jh
+107,81.58882,28.33617,RCC_H3 flat roof,,wh1zj8vr
+108,87.21382,27.73617,RCC_H1 flat roof,,wh1zj9jm
+109,81.43882,28.56117,RCC_H1 flat roof,,wh1zj9m2
+110,82.86382,29.23617,RCC_H1 flat roof,,wh1zj9m6
+111,83.38882,29.01117,RCC_H1 flat roof,,wh1zj9mk
+112,84.58882,28.41117,RCC_H1 flat roof,,wh1zj9tk
+113,80.38882,29.01117,RCC_H1 flat roof,,wh1zj9vr
+114,81.96382,28.11117,RCC_H1 flat roof,,wh1zj9md
+115,85.86382,28.11117,RCC_H1 flat roof,,wh1yvdtg
+116,81.28882,30.06117,RCC_H1 flat roof,,wh1yvsvg
+117,82.86382,29.61117,RCC_H1 flat roof,,wh1zj9mz
+118,83.98882,29.31117,RCC_H1 flat roof,,wh1zj9q4
+119,83.01382,29.31117,RCC_H1 flat roof,,wh1ytxqw
+120,83.46382,28.93617,RCC_H1 flat roof,,wh1yv8nt
+121,86.76382,27.96117,RCC_H1 flat roof,,wh1yvenw
+122,85.71382,28.18617,RCC_H1 flat roof,,wh1yvwnx
+123,84.66382,28.33617,RCC_H1 flat roof,,wh1yttw8
+124,82.86382,29.31117,RCC_H1 flat roof,,wh1ytxw8
+125,82.63882,29.16117,RCC_H1 flat roof,,wh1zj9qx
+126,84.13882,28.71117,RCC_H1 flat roof,,wh1yvwnu
+127,83.76382,28.71117,RCC_H1 flat roof,,wh1zj9nz
+128,87.06382,27.58617,RCC_H1 flat roof,,wh1yttrn
+129,82.86382,29.38617,RCC_H1 flat roof,,wh1yvwpp
+130,86.83882,27.81117,RCC_H1 flat roof,,wh1yttrk
+131,80.83882,28.86117,RCC_H1 flat roof,,wh1zj9xk
+132,83.08882,29.01117,RCC_H1 flat roof,,wh1zj9xm
+133,83.38882,29.08617,RCC_H1 flat roof,,wh1ytxx8
+134,81.43882,28.48617,Timber,,wh1ytxxb
+135,81.51382,30.36117,Timber,,wh1yvwpg
+136,84.06382,29.23617,Timber,,wh1ytxxf
+137,82.78882,29.16117,Timber,,wh1ytxxg
+138,84.21382,28.41117,Timber,,wh1zj9pu
+139,80.76382,28.86117,Timber,,wh1zjdrc
+140,83.91382,28.78617,Timber,,wh1ytz84
+141,83.31382,29.16117,Timber,,wh1zjbbp
+142,81.58882,29.76117,Timber,,wh1zjc04
+143,82.71382,27.73617,Timber,,wh1zjc0h
+144,80.98882,28.86117,Timber,,wh1ytv26
+145,81.96382,30.21117,Timber,,wh1ytv2k
+146,85.11382,28.41117,Timber,,wh1ytv2q
+147,81.36382,29.83617,Timber,,wh1ytz2q
+148,83.76382,28.93617,Timber,,wh1zjbbr
+149,83.01382,29.53617,Timber,,wh1zjc02
+150,81.73882,29.91117,Timber,,wh1zjc0k
+151,87.43882,27.66117,Timber,,wh1zjcbm
+152,88.03882,27.51117,Timber,,wh1zjf06
+153,81.73882,30.13617,Timber,,wh1ytv88
+154,83.53882,28.93617,Timber,,wh1ytv8s
+155,86.53882,27.73617,Timber,,wh1ytz0e
+156,82.33882,29.98617,Timber,,wh1ytz2t
+157,81.88882,29.46117,Timber,,wh1ytz2u
+158,86.61382,27.96117,Timber,,wh1ytz2v
+159,86.91382,27.66117,Timber,,wh1ytz2z
+160,83.31382,29.46117,RCC_H2 gable roof,,wh1ytz8b
+161,83.31382,29.23617,RCC_H2 gable roof,,wh1yvv2y
+162,83.53882,29.08617,RCC_H2 gable roof,,wh1zjf8c
+163,80.68882,28.93617,RCC_H2 gable roof,,wh1ytz8b
+164,83.53882,29.01117,RCC_H2 gable roof,,wh1ytz1j
+165,81.13882,28.78617,RCC_H2 gable roof,,wh1ytz1n
+166,83.98882,28.48617,RCC_H1 flat roof,,wh1ytz30
+167,83.23882,29.38617,RCC_H1 flat roof,,wh1ytz3n
+168,83.01382,29.08617,RCC_H1 flat roof,,wh1ytz90
+169,83.31382,28.71117,RCC_H1 flat roof,,wh1yvg10
+170,86.91382,27.73617,RCC_H1 flat roof,,wh1zjccp
+171,83.16382,29.31117,RCC_H1 flat roof,,wh1zjf9h
+172,80.61382,28.93617,RCC_H1 flat roof,,wh1ytz1j
+173,83.91382,29.01117,RCC_H1 flat roof,,wh1ytz30
+174,82.03882,30.28617,RCC_H1 flat roof,,wh1ytz3n
+175,83.38882,29.31117,RCC_H1 flat roof,,wh1ytz90
+176,80.68882,28.86117,RCC_H3 flat roof,,wh1ytz94
+177,83.46382,28.71117,RCC_H3 flat roof,,wh1yvv1j
+178,84.13882,28.41117,RCC_H3 flat roof,,wh1zjf91
+179,83.08882,29.16117,RCC_H3 flat roof,,wh1yvv1m
+180,84.13882,28.78617,RCC_H3 flat roof,,wh1ytz3k
+181,85.11382,28.33617,RCC_H3 flat roof,,wh1ytz97
+182,84.06382,29.01117,RCC_H3 flat roof,,wh1ytz9m
+183,83.01382,29.61117,RCC_H3 flat roof,,wh1zjf1k
+184,86.83882,27.73617,RCC_H3 flat roof,,wh1ytz1t
+185,84.36382,28.78617,RCC_H3 flat roof,,wh1ytz3t
+186,84.13882,28.56117,MR_H1 flat roof,,wh1ytz3w
+187,83.16382,29.01117,MR_H1 flat roof,,wh1ytz98
+188,83.01382,29.23617,MR_H1 flat roof,,wh1ytz9e
+189,82.86382,28.86117,MR_H1 flat roof,,wh1zjc3w
+190,85.03882,28.56117,MR_H1 flat roof,,wh1zjc3x
+191,83.31382,28.78617,MR_H1 flat roof,,wh1ytz3u
+192,81.88882,28.18617,MR_H1 flat roof,,wh1zjc9u
+193,83.23882,29.31117,MR_H2 gable roof,,wh1zjccf
+194,84.13882,29.16117,MR_H2 gable roof,,wh1zjccg
+195,84.21382,28.78617,MR_H2 gable roof,,wh1zjccg
+196,86.83882,27.96117,MR_H2 gable roof,,wh1ytz6j
+197,87.58882,27.73617,MR_H2 gable roof,,wh1ytz6n
+198,83.31382,28.93617,MR_H2 gable roof,,wh1ytzd5
+199,81.96382,30.06117,MR_H2 gable roof,,wh1ytzdj
+200,82.93882,29.08617,MR_H2 gable roof,,wh1ytzdp
+201,80.98882,28.78617,MR_H2 gable roof,,wh1ytzf4
+202,84.73882,28.48617,MR_H2 gable roof,,wh1zjc6n
+203,87.06382,27.73617,MR_H2 gable roof,,wh1yvy6h
+204,83.16382,29.23617,MR_H2 gable roof,,wh1zjc4n
+205,84.06382,28.41117,MR_H2 gable roof,,wh1zjcfp
+206,82.63882,29.76117,MR_H2 gable roof,,wh1ytz6h
+207,83.46382,29.08617,MR_H2 gable roof,,wh1ytzd4
+208,83.98882,28.41117,MR_H2 gable roof,,wh1yvc4n
+209,85.03882,28.33617,MR_H2 gable roof,,wh1zjb6h
+210,87.06382,27.66117,MR_H2 gable roof,,wh1zjcd5
+211,81.88882,30.06117,MR_H2 gable roof,,wh1zjcdh
+212,83.91382,29.31117,MR_H2 gable roof,,wh1zjf41
+213,83.23882,29.01117,MR_H2 gable roof,,wh1yvzfr
+214,83.98882,28.78617,RCC_H4 gaqble roof,,wh1zjbf2
+215,82.11382,30.13617,RCC_H4 gaqble roof,,wh1zjc46
+216,83.68882,28.93617,RCC_H4 gaqble roof,,wh1zjc4q
+217,83.91382,28.86117,RCC_H4 gaqble roof,,wh1zjf42
+218,83.91382,28.71117,RCC_H4 gaqble roof,,wh1ytz66
+219,83.91382,28.48617,RCC_H4 gaqble roof,,wh1ytz6k
+220,81.13882,29.83617,RCC_H4 gaqble roof,,wh1ytz6m
+221,83.08882,29.23617,RCC_H4 gaqble roof,,wh1ytz6q
+222,82.93882,28.86117,RCC_H4 gaqble roof,,wh1ytzd2
+223,84.06382,29.16117,RCC_H4 gaqble roof,,wh1ytzd7
+224,83.23882,28.93617,RCC_H4 gaqble roof,,wh1yvc6r
+225,84.58882,27.43617,RCC_H4 gaqble roof,,wh1yvufm
+226,87.13882,27.66117,RCC_H4 gaqble roof,,wh1yvvf3
+227,81.81382,30.28617,RCC_H4 gaqble roof,,wh1yvzfr
+228,82.78882,29.08617,RCC_H4 gaqble roof,,wh1zjb42
+229,82.63882,27.73617,RCC_H4 gaqble roof,,wh1zjb4q
+230,82.71382,29.16117,RCC_H4 gaqble roof,,wh1zjb4q
+231,84.51382,28.48617,RCC_H4 gaqble roof,,wh1zjbdq
+232,83.01382,29.16117,RCC_H4 gaqble roof,,wh1zjc43
+233,81.36382,28.56117,RCC_H4 gaqble roof,,wh1zjc67
+234,83.23882,29.23617,RCC_H4 gaqble roof,,wh1zjcd6
+235,84.13882,29.23617,RCC_H4 gaqble roof,,wh1zjcfr
+236,82.03882,30.21117,RCC_H4 gaqble roof,,wh1zjf42
+237,83.01382,29.01117,RCC_H4 gaqble roof,,wh1yvgdk
+238,82.63882,29.31117,RCC_H3 flat roof,,wh1yvgdm
+239,83.98882,29.08617,RCC_H3 flat roof,,wh1yvgdr
+240,88.03882,27.58617,RCC_H3 flat roof,,wh1yvgf2
+241,81.96382,30.28617,RCC_H3 flat roof,,wh1yvzfm
+242,82.78882,29.23617,RCC_H3 flat roof,,wh1zjb4q
+243,83.31382,29.01117,RCC_H3 flat roof,,wh1zjb4r
+244,84.96382,28.41117,RCC_H3 flat roof,,wh1zjbdm
+245,82.78882,29.31117,RCC_H3 flat roof,,wh1yvgds
+246,83.46382,29.01117,RCC_H3 flat roof,,wh1yvzde
+247,81.51382,29.98617,RCC_H3 flat roof,,wh1yvzfd
+248,83.16382,29.53617,RCC_H3 flat roof,,wh1yvzfd
+249,83.61382,28.93617,RCC_H3 flat roof,,wh1yvzft
+250,87.13882,27.73617,RCC_H3 flat roof,,wh1zjb49
+251,81.43882,30.06117,RCC_H3 flat roof,,wh1zjb4x
+252,83.91382,28.41117,RCC_H3 flat roof,,wh1zjb4x
+253,81.51382,30.28617,RCC_H3 flat roof,,wh1zjb6d
+254,82.18882,29.98617,RCC_H3 flat roof,,wh1zjb6t
+255,82.56382,29.16117,RCC_H3 flat roof,,wh1zjbf9
+256,83.68882,28.63617,RCC_H3 flat roof,,wh1zjfds
+257,87.58882,27.81117,RCC_H3 flat roof,,wh1ytzdt
+258,83.08882,29.31117,RCC_H3 flat roof,,wh1ytzfd
+259,87.51382,27.58617,RCC_H3 flat roof,,wh1yvbfs
+260,82.93882,29.61117,RCC_H3 flat roof,,wh1yvc4x
+261,84.28882,28.48617,RCC_H3 flat roof,,wh1yvzde
+262,87.13882,27.81117,RCC_H3 flat roof,,wh1zjb4t
+263,81.58882,30.13617,RCC_H3 flat roof,,wh1zjb4w
+264,81.96382,30.13617,RCC_H3 flat roof,,wh1zjbd9
+265,81.66382,30.13617,RCC_H3 flat roof,,wh1zjbde
+266,81.58882,28.33617,RCC_H3 flat roof,,wh1zjbde
+267,87.21382,27.73617,RCC_H1 flat roof,,wh1zjbfd
+268,81.43882,28.56117,RCC_H1 flat roof,,wh1zjc4x
+269,82.86382,29.23617,RCC_H1 flat roof,,wh1zjc6t
+270,83.38882,29.01117,RCC_H1 flat roof,,wh1zjf69
+271,84.58882,28.41117,RCC_H1 flat roof,,wh1zjbd9
+272,80.38882,29.01117,RCC_H1 flat roof,,wh1zjbdc
+273,81.96382,28.11117,RCC_H1 flat roof,,wh1ytzdf
+274,85.86382,28.11117,RCC_H1 flat roof,,wh1ytzdg
+275,81.28882,30.06117,RCC_H1 flat roof,,wh1yvc4z
+276,82.86382,29.61117,RCC_H1 flat roof,,wh1yvc6c
+277,83.98882,29.31117,RCC_H1 flat roof,,wh1yvffb
+278,83.01382,29.31117,RCC_H1 flat roof,,wh1zjbdg
+279,83.46382,28.93617,RCC_H1 flat roof,,wh1zjcfz
+280,86.76382,27.96117,RCC_H1 flat roof,,wh1zjf6f
+281,85.71382,28.18617,RCC_H1 flat roof,,wh1zjgfu
+282,84.66382,28.33617,RCC_H1 flat roof,,wh1zjf6c
+283,82.86382,29.31117,RCC_H1 flat roof,,wh1ytze5
+284,82.63882,29.16117,RCC_H1 flat roof,,wh1ytzej
+285,84.13882,28.71117,RCC_H1 flat roof,,wh1yvc5p
+286,83.76382,28.71117,RCC_H1 flat roof,,wh1yvc7j
+287,87.06382,27.58617,RCC_H1 flat roof,,wh1yvc7p
+288,82.86382,29.38617,RCC_H1 flat roof,,wh1yvce1
+289,86.83882,27.81117,RCC_H1 flat roof,,wh1yvce5
+290,80.83882,28.86117,RCC_H1 flat roof,,wh1yvceh
+291,83.08882,29.01117,RCC_H1 flat roof,,wh1yvcg1
+292,83.38882,29.08617,RCC_H1 flat roof,,wh1zjb7p
+293,81.43882,28.48617,Timber,,wh1zjbe0
+294,81.51382,30.36117,Timber,,wh1zjbg4
+295,84.06382,29.23617,Timber,,wh1zjf71
+296,82.78882,29.16117,Timber,,wh1ytz7k
+297,84.21382,28.41117,Timber,,wh1ytzer
+298,80.76382,28.86117,Timber,,wh1yvc73
+299,83.91382,28.78617,Timber,,wh1yvc7m
+300,83.31382,29.16117,Timber,,wh1yvce7
+301,81.58882,29.76117,Timber,,wh1yvcek
+302,82.71382,27.73617,Timber,,wh1yvceq
+303,80.98882,28.86117,Timber,,wh1yvcer
+304,81.96382,30.21117,Timber,,wh1zjbe7
+305,85.11382,28.41117,Timber,,wh1zjbeq
+306,81.36382,29.83617,Timber,,wh1zjf7k
+307,83.76382,28.93617,Timber,,wh1ytzem
+308,83.01382,29.53617,Timber,,wh1ytzer
+309,81.73882,29.91117,Timber,,wh1ytzg6
+310,87.43882,27.66117,Timber,,wh1ytzg7
+311,88.03882,27.51117,Timber,,wh1yvbek
+312,81.73882,30.13617,Timber,,wh1yvc73
+313,83.53882,28.93617,Timber,,wh1yvc7r
+314,86.53882,27.73617,Timber,,wh1yvce3
+315,82.33882,29.98617,Timber,,wh1yvce7
+316,81.88882,29.46117,Timber,,wh1yvceq
+317,86.61382,27.96117,Timber,,wh1yvz76
+318,86.91382,27.66117,Timber,,wh1zjb7m
+319,83.31382,29.46117,RCC_H2 gable roof,,wh1zjbem
+320,83.31382,29.23617,RCC_H2 gable roof,,wh1zjcek
+321,83.53882,29.08617,RCC_H2 gable roof,,wh1zjcem
+322,80.68882,28.93617,RCC_H2 gable roof,,wh1yvce7
+323,83.53882,29.01117,RCC_H2 gable roof,,wh1zjf73
+324,81.13882,28.78617,RCC_H2 gable roof,,wh1yvvee
+325,83.98882,28.48617,RCC_H1 flat roof,,wh1ytzee
+326,83.23882,29.38617,RCC_H1 flat roof,,wh1ytzet
+327,83.01382,29.08617,RCC_H1 flat roof,,wh1ytzg8
+328,83.31382,28.71117,RCC_H1 flat roof,,wh1ytzgd
+329,86.91382,27.73617,RCC_H1 flat roof,,wh1ytzge
+330,83.16382,29.31117,RCC_H1 flat roof,,wh1yvbgw
+331,80.61382,28.93617,RCC_H1 flat roof,,wh1yvc78
+332,83.91382,29.01117,RCC_H1 flat roof,,wh1yvc79
+333,82.03882,30.28617,RCC_H1 flat roof,,wh1yvc7d
+334,83.38882,29.31117,RCC_H1 flat roof,,wh1yvc7t
+335,80.68882,28.86117,RCC_H3 flat roof,,wh1yvc7x
+336,83.46382,28.71117,RCC_H3 flat roof,,wh1yvce9
+337,84.13882,28.41117,RCC_H3 flat roof,,wh1yvcee
+338,83.08882,29.16117,RCC_H3 flat roof,,wh1yvces
+339,84.13882,28.78617,RCC_H3 flat roof,,wh1yvcex
+340,85.11382,28.33617,RCC_H3 flat roof,,wh1yvcgd
+341,84.06382,29.01117,RCC_H3 flat roof,,wh1yvcgw
+342,83.01382,29.61117,RCC_H3 flat roof,,wh1yvz5w
+343,86.83882,27.73617,RCC_H3 flat roof,,wh1zjcgx
+344,84.36382,28.78617,RCC_H3 flat roof,,wh1ytzeg
+345,84.13882,28.56117,MR_H1 flat roof,,wh1ytzev
+346,83.16382,29.01117,MR_H1 flat roof,,wh1ytzgg
+347,83.01382,29.23617,MR_H1 flat roof,,wh1yvc5f
+348,82.86382,28.86117,MR_H1 flat roof,,wh1yvc7f
+349,85.03882,28.56117,MR_H1 flat roof,,wh1yvc7v
+350,83.31382,28.78617,MR_H1 flat roof,,wh1yvc7z
+351,81.88882,28.18617,MR_H1 flat roof,,wh1yvcec
+352,83.23882,29.31117,MR_H2 gable roof,,wh1yvceg
+353,84.13882,29.16117,MR_H2 gable roof,,wh1yvceu
+354,84.21382,28.78617,MR_H2 gable roof,,wh1yvcey
+355,86.83882,27.96117,MR_H2 gable roof,,wh1yvcey
+356,87.58882,27.73617,MR_H2 gable roof,,wh1yvfey
+357,83.31382,28.93617,MR_H2 gable roof,,wh1yvv7z
+358,81.96382,30.06117,MR_H2 gable roof,,wh1yvvez
+359,82.93882,29.08617,MR_H2 gable roof,,wh1zjbeg
+360,80.98882,28.78617,MR_H2 gable roof,,wh1yvv7v
+361,84.73882,28.48617,MR_H2 gable roof,,wh1ytzuj
+362,87.06382,27.73617,MR_H2 gable roof,,wh1ytzup
+363,83.16382,29.23617,MR_H2 gable roof,,wh1yvbh4
+364,84.06382,28.41117,MR_H2 gable roof,,wh1yvbh5
+365,82.63882,29.76117,MR_H2 gable roof,,wh1yvbhj
+366,83.46382,29.08617,MR_H2 gable roof,,wh1yvbu4
+367,83.98882,28.41117,MR_H2 gable roof,,wh1yvbuh
+368,85.03882,28.33617,MR_H2 gable roof,,wh1yvbun
+369,87.06382,27.66117,MR_H2 gable roof,,wh1yvch1
+370,81.88882,30.06117,MR_H2 gable roof,,wh1yvfh1
+371,83.91382,29.31117,MR_H2 gable roof,,wh1zjbsj
+372,83.23882,29.01117,MR_H2 gable roof,,wh1zjcun
+373,83.98882,28.78617,RCC_H4 gaqble roof,,wh1yvvk0
+374,82.11382,30.13617,RCC_H4 gaqble roof,,wh1ytzu0
+375,83.68882,28.93617,RCC_H4 gaqble roof,,wh1yvbh1
+376,83.91382,28.86117,RCC_H4 gaqble roof,,wh1yvbh5
+377,83.91382,28.71117,RCC_H4 gaqble roof,,wh1yvbk4
+378,83.91382,28.48617,RCC_H4 gaqble roof,,wh1yvbs0
+379,81.13882,29.83617,RCC_H4 gaqble roof,,wh1yvbsn
+380,83.08882,29.23617,RCC_H4 gaqble roof,,wh1yvbu0
+381,82.93882,28.86117,RCC_H4 gaqble roof,,wh1yvckj
+382,84.06382,29.16117,RCC_H4 gaqble roof,,wh1yvfs5
+383,83.23882,28.93617,RCC_H4 gaqble roof,,wh1yvvhh
+384,84.58882,27.43617,RCC_H4 gaqble roof,,wh1yvvun
+385,87.13882,27.66117,RCC_H4 gaqble roof,,wh1yvzh1
+386,81.81382,30.28617,RCC_H4 gaqble roof,,wh1zjbk0
+387,82.78882,29.08617,RCC_H4 gaqble roof,,wh1zjbsn
+388,82.63882,27.73617,RCC_H4 gaqble roof,,wh1zjbu0
+389,82.71382,29.16117,RCC_H4 gaqble roof,,wh1zjcsj
+390,84.51382,28.48617,RCC_H4 gaqble roof,,wh1zjgkn
+391,83.01382,29.16117,RCC_H4 gaqble roof,,wh1yvbkk
+392,81.36382,28.56117,RCC_H4 gaqble roof,,wh1yvbu6
+393,83.23882,29.23617,RCC_H4 gaqble roof,,wh1yvvh7
+394,84.13882,29.23617,RCC_H4 gaqble roof,,wh1ytzs7
+395,82.03882,30.21117,RCC_H4 gaqble roof,,wh1ytzur
+396,83.01382,29.01117,RCC_H4 gaqble roof,,wh1yvbh6
+397,82.63882,29.31117,RCC_H3 flat roof,,wh1yvbkk
+398,83.98882,29.08617,RCC_H3 flat roof,,wh1yvbkm
+399,88.03882,27.58617,RCC_H3 flat roof,,wh1yvbkr
+400,81.96382,30.28617,RCC_H3 flat roof,,wh1yvbs2
+401,82.78882,29.23617,RCC_H3 flat roof,,wh1yvbsq
+402,83.31382,29.01117,RCC_H3 flat roof,,wh1yvbsr
+403,84.96382,28.41117,RCC_H3 flat roof,,wh1yvbu2
+404,82.78882,29.31117,RCC_H3 flat roof,,wh1yvbu6
+405,83.46382,29.01117,RCC_H3 flat roof,,wh1yvfh7
+406,81.51382,29.98617,RCC_H3 flat roof,,wh1yvuur
+407,83.16382,29.53617,RCC_H3 flat roof,,wh1yvys7
+408,83.61382,28.93617,RCC_H3 flat roof,,wh1yvyuk
+409,87.13882,27.73617,RCC_H3 flat roof,,wh1zjbkm
+410,81.43882,30.06117,RCC_H3 flat roof,,wh1zjbs6
+411,83.91382,28.41117,RCC_H3 flat roof,,wh1zjcsr
+412,81.51382,30.28617,RCC_H3 flat roof,,wh1yvbss
+413,82.18882,29.98617,RCC_H3 flat roof,,wh1yvbsw
+414,82.56382,29.16117,RCC_H3 flat roof,,wh1yvbsx
+415,83.68882,28.63617,RCC_H3 flat roof,,wh1yvbu9
+416,87.58882,27.81117,RCC_H3 flat roof,,wh1yvbud
+417,83.08882,29.31117,RCC_H3 flat roof,,wh1yvysw
+418,87.51382,27.58617,RCC_H3 flat roof,,wh1yvyus
+419,82.93882,29.61117,RCC_H3 flat roof,,wh1zjbh9
+420,84.28882,28.48617,RCC_H3 flat roof,,wh1zjbsd
+421,87.13882,27.81117,RCC_H3 flat roof,,wh1zjcsx
+422,81.58882,30.13617,RCC_H3 flat roof,,wh1zjfuw
+423,81.96382,30.13617,RCC_H3 flat roof,,wh1yvusz
+424,81.66382,30.13617,RCC_H3 flat roof,,wh1yvuuz
+425,81.58882,28.33617,RCC_H3 flat roof,,wh1yvyky
+426,87.21382,27.73617,RCC_H1 flat roof,,wh1yvysy
+427,81.43882,28.56117,RCC_H1 flat roof,,wh1zjbsf
+428,82.86382,29.23617,RCC_H1 flat roof,,wh1zjfuc
+429,83.38882,29.01117,RCC_H1 flat roof,,wh1zjfug
+430,84.58882,28.41117,RCC_H1 flat roof,,wh1zjfuu
+431,80.38882,29.01117,RCC_H1 flat roof,,wh1zjfuu
+432,81.96382,28.11117,RCC_H1 flat roof,,wh1zjfuy
+433,85.86382,28.11117,RCC_H1 flat roof,,wh1zjghy
+434,81.28882,30.06117,RCC_H1 flat roof,,wh1yvuvp
+435,82.86382,29.61117,RCC_H1 flat roof,,wh1yvump
+436,83.98882,29.31117,RCC_H1 flat roof,,wh1yvut0
+437,83.01382,29.31117,RCC_H1 flat roof,,wh1yvut5
+438,83.46382,28.93617,RCC_H1 flat roof,,wh1yvut5
+439,86.76382,27.96117,RCC_H1 flat roof,,wh1yvutj
+440,85.71382,28.18617,RCC_H1 flat roof,,wh1yvuv5
+441,84.66382,28.33617,RCC_H1 flat roof,,wh1yvuvj
+442,82.86382,29.31117,RCC_H1 flat roof,,wh1yvuvn
+443,82.63882,29.16117,RCC_H1 flat roof,,wh1yvuvp
+444,84.13882,28.71117,RCC_H1 flat roof,,wh1yvzv0
+445,83.76382,28.71117,RCC_H1 flat roof,,wh1yvzv1
+446,87.06382,27.58617,RCC_H1 flat roof,,wh1zjfvn
+447,82.86382,29.38617,RCC_H1 flat roof,,wh1zjfvp
+448,86.83882,27.81117,RCC_H1 flat roof,,wh1zjgjh
+449,80.83882,28.86117,RCC_H1 flat roof,,wh1zjgjn
+450,83.08882,29.01117,RCC_H1 flat roof,,wh1zjgjp
+451,83.38882,29.08617,RCC_H1 flat roof,,wh1yvuv1
+452,81.43882,28.48617,Timber,,wh1yvuv4
+453,81.51382,30.36117,Timber,,wh1yvuvj
+454,84.06382,29.23617,Timber,,wh1yvuvp
+455,82.78882,29.16117,Timber,,wh1yvym5
+456,84.21382,28.41117,Timber,,wh1yvymh
+457,80.76382,28.86117,Timber,,wh1yvymn
+458,83.91382,28.78617,Timber,,wh1yvymp
+459,83.31382,29.16117,Timber,,wh1zjctp
+460,81.58882,29.76117,Timber,,wh1zjft4
+461,82.71382,27.73617,Timber,,wh1zjfv0
+462,80.98882,28.86117,Timber,,wh1zjfv1
+463,81.96382,30.21117,Timber,,wh1zjfv5
+464,85.11382,28.41117,Timber,,wh1zjgjp
+465,81.36382,29.83617,Timber,,wh1zjgm1
+466,83.76382,28.93617,Timber,,wh1zjgm5
+467,83.01382,29.53617,Timber,,wh1yvuvr
+468,81.73882,29.91117,Timber,,wh1yvut2
+469,87.43882,27.66117,Timber,,wh1yvutm
+470,88.03882,27.51117,Timber,,wh1yvutr
+471,81.73882,30.13617,Timber,,wh1yvuvr
+472,83.53882,28.93617,Timber,,wh1yvyjr
+473,86.53882,27.73617,Timber,,wh1yvym7
+474,82.33882,29.98617,Timber,,wh1yvymq
+475,81.88882,29.46117,Timber,,wh1yvzt7
+476,86.61382,27.96117,Timber,,wh1yvztq
+477,86.91382,27.66117,Timber,,wh1zjbv6
+478,83.31382,29.46117,RCC_H2 gable roof,,wh1zjft3
+479,83.31382,29.23617,RCC_H2 gable roof,,wh1zjftq
+480,83.53882,29.08617,RCC_H2 gable roof,,wh1zjgm7
+481,80.68882,28.93617,RCC_H2 gable roof,,wh1zjgmm
+482,83.53882,29.01117,RCC_H2 gable roof,,wh1yvyj9
+483,81.13882,28.78617,RCC_H2 gable roof,,wh1yvymw
+484,83.98882,28.48617,RCC_H1 flat roof,,wh1yvyvs
+485,83.23882,29.38617,RCC_H1 flat roof,,wh1zjftd
+486,83.01382,29.08617,RCC_H1 flat roof,,wh1zjfts
+487,83.31382,28.71117,RCC_H1 flat roof,,wh1yvutt
+488,86.91382,27.73617,RCC_H1 flat roof,,wh1yvutw
+489,83.16382,29.31117,RCC_H1 flat roof,,wh1yvuvx
+490,80.61382,28.93617,RCC_H1 flat roof,,wh1zjcvt
+491,83.91382,29.01117,RCC_H1 flat roof,,wh1yvutf
+492,82.03882,30.28617,RCC_H1 flat roof,,wh1yvutz
+493,83.38882,29.31117,RCC_H1 flat roof,,wh1yvuvc
+494,80.68882,28.86117,RCC_H3 flat roof,,wh1yvuvf
+495,83.46382,28.71117,RCC_H3 flat roof,,wh1yvuvu
+496,84.13882,28.41117,RCC_H3 flat roof,,wh1yvuvy
+497,83.08882,29.16117,RCC_H3 flat roof,,wh1yvuvz
+498,84.13882,28.78617,RCC_H3 flat roof,,wh1yvyjc
+499,85.11382,28.33617,RCC_H3 flat roof,,wh1yvyvu
+500,84.06382,29.01117,RCC_H3 flat roof,,wh1zjcvc
+501,83.01382,29.61117,RCC_H3 flat roof,,wh1zjcvu
+502,86.83882,27.73617,RCC_H3 flat roof,,wh1zjfmc
+503,84.36382,28.78617,RCC_H3 flat roof,,wh1zjftf
+504,84.13882,28.56117,MR_H1 flat roof,,wh1zjftu
+505,83.16382,29.01117,MR_H1 flat roof,,wh1zjfty
+506,83.01382,29.23617,MR_H1 flat roof,,wh1zjfvg
+507,82.86382,28.86117,MR_H1 flat roof,,wh1zjfvu
+508,85.03882,28.56117,MR_H1 flat roof,,wh1zjgmg
+509,83.31382,28.78617,MR_H1 flat roof,,wh1yvuwj
+510,81.88882,28.18617,MR_H1 flat roof,,wh1yvyyh
+511,83.23882,29.31117,MR_H2 gable roof,,wh1yvzw0
+512,84.13882,29.16117,MR_H2 gable roof,,wh1zjbwn
+513,84.21382,28.78617,MR_H2 gable roof,,wh1zjfnh
+514,86.83882,27.96117,MR_H2 gable roof,,wh1zjfnp
+515,87.58882,27.73617,MR_H2 gable roof,,wh1zjfq1
+516,83.31382,28.93617,MR_H2 gable roof,,wh1zjfqh
+517,81.96382,30.06117,MR_H2 gable roof,,wh1zjfqn
+518,82.93882,29.08617,MR_H2 gable roof,,wh1zjfqp
+519,80.98882,28.78617,MR_H2 gable roof,,wh1zjfw1
+520,84.73882,28.48617,MR_H2 gable roof,,wh1zjfw4
+521,87.06382,27.73617,MR_H2 gable roof,,wh1zjfwh
+522,83.16382,29.23617,MR_H2 gable roof,,wh1zjfyn
+523,84.06382,28.41117,MR_H2 gable roof,,wh1zjgqj
+524,82.63882,29.76117,MR_H2 gable roof,,wh1zjfnp
+525,83.46382,29.08617,MR_H2 gable roof,,wh1zjfqn
+526,83.98882,28.41117,MR_H2 gable roof,,wh1zjfw1
+527,85.03882,28.33617,MR_H2 gable roof,,wh1zjfw4
+528,87.06382,27.66117,MR_H2 gable roof,,wh1zjfw4
+529,81.88882,30.06117,MR_H2 gable roof,,wh1zjfwh
+530,83.91382,29.31117,MR_H2 gable roof,,wh1zjfwn
+531,83.23882,29.01117,MR_H2 gable roof,,wh1zjgyh
+532,83.98882,28.78617,RCC_H4 gaqble roof,,wh1yvyyk
+533,82.11382,30.13617,RCC_H4 gaqble roof,,wh1zjbwq
+534,83.68882,28.93617,RCC_H4 gaqble roof,,wh1zjcy3
+535,83.91382,28.86117,RCC_H4 gaqble roof,,wh1zjcym
+536,83.91382,28.71117,RCC_H4 gaqble roof,,wh1zjfq3
+537,83.91382,28.48617,RCC_H4 gaqble roof,,wh1zjfw6
+538,81.13882,29.83617,RCC_H4 gaqble roof,,wh1zjfwk
+539,83.08882,29.23617,RCC_H4 gaqble roof,,wh1zjgyk
+540,82.93882,28.86117,RCC_H4 gaqble roof,,wh1zjfnx
+541,84.06382,29.16117,RCC_H4 gaqble roof,,wh1zjgys
+542,83.23882,28.93617,RCC_H4 gaqble roof,,wh1zjfq9
+543,84.58882,27.43617,RCC_H4 gaqble roof,,wh1zjfns
+544,87.13882,27.66117,RCC_H4 gaqble roof,,wh1zjfqx
+545,81.81382,30.28617,RCC_H4 gaqble roof,,wh1zjfws
+546,82.78882,29.08617,RCC_H4 gaqble roof,,wh1zjgn9
+547,82.63882,27.73617,RCC_H4 gaqble roof,,wh1zjgw8
+548,82.71382,29.16117,RCC_H4 gaqble roof,,wh1zjgw9
+549,84.51382,28.48617,RCC_H4 gaqble roof,,wh1zjgye
+550,83.01382,29.16117,RCC_H4 gaqble roof,,wh1zjgyw
+551,81.36382,28.56117,RCC_H4 gaqble roof,,wh1zjyw9
+552,83.23882,29.23617,RCC_H4 gaqble roof,,wh1zjbwy
+553,84.13882,29.23617,RCC_H4 gaqble roof,,wh1zjcyu
+554,82.03882,30.21117,RCC_H4 gaqble roof,,wh1zjfqf
+555,83.01382,29.01117,RCC_H4 gaqble roof,,wh1zjfqy
+556,82.63882,29.31117,RCC_H3 flat roof,,wh1zjfqz
+557,83.98882,29.08617,RCC_H3 flat roof,,wh1zjfwf
+558,88.03882,27.58617,RCC_H3 flat roof,,wh1zjfyg
+559,81.96382,30.28617,RCC_H3 flat roof,,wh1zjgnc
+560,82.78882,29.23617,RCC_H3 flat roof,,wh1zjgnz
+561,83.31382,29.01117,RCC_H3 flat roof,,wh1zjgwy
+562,84.96382,28.41117,RCC_H3 flat roof,,wh1zjgyb
+563,82.78882,29.31117,RCC_H3 flat roof,,wh1yvyzn
+564,83.46382,29.01117,RCC_H3 flat roof,,wh1yvzp1
+565,81.51382,29.98617,RCC_H3 flat roof,,wh1yvzpn
+566,83.16382,29.53617,RCC_H3 flat roof,,wh1zjbxn
+567,83.61382,28.93617,RCC_H3 flat roof,,wh1zjfr1
+568,87.13882,27.73617,RCC_H3 flat roof,,wh1zjfxh
+569,81.43882,30.06117,RCC_H3 flat roof,,wh1zjfz5
+570,83.91382,28.41117,RCC_H3 flat roof,,wh1zjgxn
+571,81.51382,30.28617,RCC_H3 flat roof,,wh1zjup0
+572,82.18882,29.98617,RCC_H3 flat roof,,wh1zjup4
+573,82.56382,29.16117,RCC_H3 flat roof,,wh1zjfp1
+574,83.68882,28.63617,RCC_H3 flat roof,,wh1yvzr2
+575,87.58882,27.81117,RCC_H3 flat roof,,wh1yvzr7
+576,83.08882,29.31117,RCC_H3 flat roof,,wh1zjfx6
+577,87.51382,27.58617,RCC_H3 flat roof,,wh1zjfxk
+578,82.93882,29.61117,RCC_H3 flat roof,,wh1zjfxq
+579,84.28882,28.48617,RCC_H3 flat roof,,wh1zjfz3
+580,87.13882,27.81117,RCC_H3 flat roof,,wh1zjfz7
+581,81.58882,30.13617,RCC_H3 flat roof,,wh1zjfzk
+582,81.96382,30.13617,RCC_H3 flat roof,,wh1zjgzr
+583,81.66382,30.13617,RCC_H3 flat roof,,wh1zjup2
+584,81.58882,28.33617,RCC_H3 flat roof,,wh1zjup6
+585,87.21382,27.73617,RCC_H1 flat roof,,wh1zjup7
+586,81.43882,28.56117,RCC_H1 flat roof,,wh1zjupq
+587,82.86382,29.23617,RCC_H1 flat roof,,wh1zjup2
+588,83.38882,29.01117,RCC_H1 flat roof,,wh1zjbx3
+589,84.58882,28.41117,RCC_H1 flat roof,,wh1yvzp2
+590,80.38882,29.01117,RCC_H1 flat roof,,wh1zjbxq
+591,81.96382,28.11117,RCC_H1 flat roof,,wh1zjbz2
+592,85.86382,28.11117,RCC_H1 flat roof,,wh1zjczr
+593,81.28882,30.06117,RCC_H1 flat roof,,wh1zjfz7
+594,82.86382,29.61117,RCC_H1 flat roof,,wh1zjfzk
+595,83.98882,29.31117,RCC_H1 flat roof,,wh1zjgz2
+596,83.01382,29.31117,RCC_H1 flat roof,,wh1zjgz6
+597,83.46382,28.93617,RCC_H1 flat roof,,wh1zjgzk
+598,86.76382,27.96117,RCC_H1 flat roof,,wh1zjupq
+599,85.71382,28.18617,RCC_H1 flat roof,,wh1zmbrb
+600,84.66382,28.33617,RCC_H1 flat roof,,wh1yyp84
+601,82.86382,29.31117,RCC_H1 flat roof,,wh1zq021
+602,82.63882,29.16117,RCC_H1 flat roof,,wh1yyp86
+603,84.13882,28.71117,RCC_H1 flat roof,,wh1zn5b2
+604,83.76382,28.71117,RCC_H1 flat roof,,wh1zn4b7
+605,87.06382,27.58617,RCC_H1 flat roof,,wh1zn588
+606,82.86382,29.38617,RCC_H1 flat roof,,wh1zn4bs
+607,86.83882,27.81117,RCC_H1 flat roof,,wh1yyp8e
+608,80.83882,28.86117,RCC_H1 flat roof,,wh1zn4b9
+609,83.08882,29.01117,RCC_H1 flat roof,,wh1yyp8f
+610,83.38882,29.08617,RCC_H1 flat roof,,wh1zq02c
+611,81.43882,28.48617,Timber,,wh1yyj2b
+612,81.51382,30.36117,Timber,,wh1zn4bg
+613,84.06382,29.23617,Timber,,wh1yyp94
+614,82.78882,29.16117,Timber,,wh1yyp95
+615,84.21382,28.41117,Timber,,wh1yyh36
+616,80.76382,28.86117,Timber,,wh1yyp9m
+617,83.91382,28.78617,Timber,,wh1yyh3t
+618,83.31382,29.16117,Timber,,wh1yyp9e
+619,81.58882,29.76117,Timber,,wh1zn5c9
+620,82.71382,27.73617,Timber,,wh1zq01w
+621,80.98882,28.86117,Timber,,wh1zn5cc
+622,81.96382,30.21117,Timber,,wh1zn5cg
+623,85.11382,28.41117,Timber,,wh1zn5f5
+624,81.36382,29.83617,Timber,,wh1zq061
+625,83.76382,28.93617,Timber,,wh1yypd7
+626,83.01382,29.53617,Timber,,wh1zn5fk
+627,81.73882,29.91117,Timber,,wh1znh46
+628,87.43882,27.66117,Timber,,wh1yyhd8
+629,88.03882,27.51117,Timber,,wh1yyjfs
+630,81.73882,30.13617,Timber,,wh1yypde
+631,83.53882,28.93617,Timber,,wh1znh4e
+632,86.53882,27.73617,Timber,,wh1zq0d9
+633,82.33882,29.98617,Timber,,wh1yyn4x
+634,81.88882,29.46117,Timber,,wh1znh4v
+635,86.61382,27.96117,Timber,,wh1znh4y
+636,86.91382,27.66117,Timber,,wh1znh5p
+637,83.31382,29.46117,RCC_H2 gable roof,,wh1znh70
+638,83.31382,29.23617,RCC_H2 gable roof,,wh1znh71
+639,83.53882,29.08617,RCC_H2 gable roof,,wh1znh76
+640,80.68882,28.93617,RCC_H2 gable roof,,wh1yyhg6
+641,83.53882,29.01117,RCC_H2 gable roof,,wh1znh76
+642,81.13882,28.78617,RCC_H2 gable roof,,wh1znh77
+643,83.98882,28.48617,RCC_H1 flat roof,,wh1yyj76
+644,83.23882,29.38617,RCC_H1 flat roof,,wh1yyjgm
+645,83.01382,29.08617,RCC_H1 flat roof,,wh1yyjgr
+646,83.31382,28.71117,RCC_H1 flat roof,,wh1yyn53
+647,86.91382,27.73617,RCC_H1 flat roof,,wh1znh7m
+648,83.16382,29.31117,RCC_H1 flat roof,,wh1znh7s
+649,80.61382,28.93617,RCC_H1 flat roof,,wh1yyhge
+650,83.91382,29.01117,RCC_H1 flat roof,,wh1znh7v
+651,82.03882,30.28617,RCC_H1 flat roof,,wh1yyn5g
+652,83.38882,29.31117,RCC_H1 flat roof,,wh1zq07c
+653,80.68882,28.86117,RCC_H3 flat roof,,wh1znh7v
+654,83.46382,28.71117,RCC_H3 flat roof,,wh1yyhun
+655,84.13882,28.41117,RCC_H3 flat roof,,wh1znhkn
+656,83.08882,29.16117,RCC_H3 flat roof,,wh1znhum
+657,84.13882,28.78617,RCC_H3 flat roof,,wh1znjh6
+658,85.11382,28.33617,RCC_H3 flat roof,,wh1znhsd
+659,84.06382,29.01117,RCC_H3 flat roof,,wh1znhse
+660,83.01382,29.61117,RCC_H3 flat roof,,wh1znhu8
+661,86.83882,27.73617,RCC_H3 flat roof,,wh1znhue
+662,84.36382,28.78617,RCC_H3 flat roof,,wh1znhut
+663,84.13882,28.56117,MR_H1 flat roof,,wh1znhux
+664,83.16382,29.01117,MR_H1 flat roof,,wh1znpuw
+665,83.01382,29.23617,MR_H1 flat roof,,wh1yyhhf
+666,82.86382,28.86117,MR_H1 flat roof,,wh1zn1hf
+667,85.03882,28.56117,MR_H1 flat roof,,wh1yyjj1
+668,83.31382,28.78617,MR_H1 flat roof,,wh1yyjj4
+669,81.88882,28.18617,MR_H1 flat roof,,wh1yyjjh
+670,83.23882,29.31117,MR_H2 gable roof,,wh1yyjjh
+671,84.13882,29.16117,MR_H2 gable roof,,wh1zq0j1
+672,84.21382,28.78617,MR_H2 gable roof,,wh1znjt6
+673,86.83882,27.96117,MR_H2 gable roof,,wh1yyhv9
+674,87.58882,27.73617,MR_H2 gable roof,,wh1yyhvz
+675,83.31382,28.93617,MR_H2 gable roof,,wh1yyhwp
+676,81.96382,30.06117,MR_H2 gable roof,,wh1yyjnk
+677,82.93882,29.08617,MR_H2 gable roof,,wh1yypn6
+678,80.98882,28.78617,MR_H2 gable roof,,wh1znpwe
+679,84.73882,28.48617,MR_H2 gable roof,,wh1yynng
+680,87.06382,27.73617,MR_H2 gable roof,,wh1zn0wf
+681,83.16382,29.23617,MR_H2 gable roof,,wh1yyhp0
+682,84.06382,28.41117,MR_H2 gable roof,,wh1zn0zx
+683,82.63882,29.76117,MR_H2 gable roof,,wh1zqr2n
+684,83.46382,29.08617,MR_H2 gable roof,,wh1zqr2p
+685,83.98882,28.41117,MR_H2 gable roof,,wh1zqr2n
+686,85.03882,28.33617,MR_H2 gable roof,,wh1znr28
+687,87.06382,27.66117,MR_H2 gable roof,,wh1znr29
+688,81.88882,30.06117,MR_H2 gable roof,,wh1yym2y
+689,83.91382,29.31117,MR_H2 gable roof,,wh1yyr0y
+690,83.23882,29.01117,MR_H2 gable roof,,wh1znr2b
+691,83.98882,28.78617,RCC_H4 gaqble roof,,wh1znr0u
+692,82.11382,30.13617,RCC_H4 gaqble roof,,wh1znr0y
+693,83.68882,28.93617,RCC_H4 gaqble roof,,wh1yyr9q
+694,83.91382,28.86117,RCC_H4 gaqble roof,,wh1zn6c2
+695,83.91382,28.71117,RCC_H4 gaqble roof,,wh1zn6c6
+696,83.91382,28.48617,RCC_H4 gaqble roof,,wh1zn6c7
+697,81.13882,29.83617,RCC_H4 gaqble roof,,wh1yyr9t
+698,83.08882,29.23617,RCC_H4 gaqble roof,,wh1yyr9w
+699,82.93882,28.86117,RCC_H4 gaqble roof,,wh1zn6cs
+700,84.06382,29.16117,RCC_H4 gaqble roof,,wh1yyrcg
+701,83.23882,28.93617,RCC_H4 gaqble roof,,wh1znqcy
+702,84.58882,27.43617,RCC_H4 gaqble roof,,wh1znqfh
+703,87.13882,27.66117,RCC_H4 gaqble roof,,wh1zn767
+704,81.81382,30.28617,RCC_H4 gaqble roof,,wh1zn76m
+705,82.78882,29.08617,RCC_H4 gaqble roof,,wh1zn26z
+706,82.63882,27.73617,RCC_H4 gaqble roof,,wh1znkdz
+707,82.71382,29.16117,RCC_H4 gaqble roof,,wh1znqdv
+708,84.51382,28.48617,RCC_H4 gaqble roof,,wh1znkfz
+709,83.01382,29.16117,RCC_H4 gaqble roof,,wh1znqdu
+710,81.36382,28.56117,RCC_H4 gaqble roof,,wh1znkej
+711,83.23882,29.23617,RCC_H4 gaqble roof,,wh1znqep
+712,84.13882,29.23617,RCC_H4 gaqble roof,,wh1znqgh
+713,82.03882,30.21117,RCC_H4 gaqble roof,,wh1yyrg7
+714,83.01382,29.01117,RCC_H4 gaqble roof,,wh1yyrgm
+715,82.63882,29.31117,RCC_H3 flat roof,,wh1yyrgr
+716,83.98882,29.08617,RCC_H3 flat roof,,wh1zn253
+717,88.03882,27.58617,RCC_H3 flat roof,,wh1zn372
+718,81.96382,30.28617,RCC_H3 flat roof,,wh1zn7e2
+719,82.78882,29.23617,RCC_H3 flat roof,,wh1znqek
+720,83.31382,29.01117,RCC_H3 flat roof,,wh1yyret
+721,84.96382,28.41117,RCC_H3 flat roof,,wh1zn37d
+722,82.78882,29.31117,RCC_H3 flat roof,,wh1znk5e
+723,83.46382,29.01117,RCC_H3 flat roof,,wh1znk78
+724,81.51382,29.98617,RCC_H3 flat roof,,wh1znk7t
+725,83.16382,29.53617,RCC_H3 flat roof,,wh1znqge
+726,83.61382,28.93617,RCC_H3 flat roof,,wh1zn7e8
+727,87.13882,27.73617,RCC_H3 flat roof,,wh1zn37b
+728,81.43882,30.06117,RCC_H3 flat roof,,wh1zn37u
+729,83.91382,28.41117,RCC_H3 flat roof,,wh1zn7ev
+730,81.51382,30.28617,RCC_H3 flat roof,,wh1znqgc
+731,82.18882,29.98617,RCC_H3 flat roof,,wh1znqu1
+732,82.56382,29.16117,RCC_H3 flat roof,,wh1yyru1
+733,83.68882,28.63617,RCC_H3 flat roof,,wh1yyru5
+734,87.58882,27.81117,RCC_H3 flat roof,,wh1yyruj
+735,83.08882,29.31117,RCC_H3 flat roof,,wh1znqsp
+736,87.51382,27.58617,RCC_H3 flat roof,,wh1yyrur
+737,82.93882,29.61117,RCC_H3 flat roof,,wh1zn2h2
+738,84.28882,28.48617,RCC_H3 flat roof,,wh1zn2h3
+739,87.13882,27.81117,RCC_H3 flat roof,,wh1zn3kk
+740,81.58882,30.13617,RCC_H3 flat roof,,wh1zn3km
+741,81.96382,30.13617,RCC_H3 flat roof,,wh1znqsk
+742,81.66382,30.13617,RCC_H3 flat roof,,wh1znqsr
+743,81.58882,28.33617,RCC_H3 flat roof,,wh1zn2kt
+744,87.21382,27.73617,RCC_H1 flat roof,,wh1zn2kx
+745,81.43882,28.56117,RCC_H1 flat roof,,wh1zn3k8
+746,82.86382,29.23617,RCC_H1 flat roof,,wh1zn3ks
+747,83.38882,29.01117,RCC_H1 flat roof,,wh1zn3kt
+748,84.58882,28.41117,RCC_H1 flat roof,,wh1zn2hz
+749,80.38882,29.01117,RCC_H1 flat roof,,wh1zn2kg
+750,81.96382,28.11117,RCC_H1 flat roof,,wh1zn2sf
+751,85.86382,28.11117,RCC_H1 flat roof,,wh1zn3kb
+752,81.28882,30.06117,RCC_H1 flat roof,,wh1zn3kv
+753,82.86382,29.61117,RCC_H1 flat roof,,wh1zn2t5
+754,83.98882,29.31117,RCC_H1 flat roof,,wh1zn3m0
+755,83.01382,29.31117,RCC_H1 flat roof,,wh1zn2tj
+756,83.46382,28.93617,RCC_H1 flat roof,,wh1zn2tn
+757,86.76382,27.96117,RCC_H1 flat roof,,wh1zn2vj
+758,85.71382,28.18617,RCC_H1 flat roof,,wh1zn3jj
+759,84.66382,28.33617,RCC_H1 flat roof,,wh1znmms
+760,82.86382,29.31117,RCC_H1 flat roof,,wh1yyryv
+761,82.63882,29.16117,RCC_H1 flat roof,,wh1zn3x6
+762,84.13882,28.71117,RCC_H1 flat roof,,wh1zn92x
+763,83.76382,28.71117,RCC_H1 flat roof,,wh1zn98d
+764,87.06382,27.58617,RCC_H1 flat roof,,wh1zn98t
+765,82.86382,29.38617,RCC_H1 flat roof,,wh1zn93k
+766,86.83882,27.81117,RCC_H1 flat roof,,wh1zn89e
+767,80.83882,28.86117,RCC_H1 flat roof,,wh1zn91t
+768,83.08882,29.01117,RCC_H1 flat roof,,wh1zn93x
+769,83.38882,29.08617,RCC_H1 flat roof,,wh1zn999
+770,81.43882,28.48617,Timber,,wh1zn99d
+771,81.51382,30.36117,Timber,,wh1zn89y
+772,84.06382,29.23617,Timber,,wh1zn99z
+773,82.78882,29.16117,Timber,,wh1zn8dj
+774,84.21382,28.41117,Timber,,wh1zn8fh
+775,80.76382,28.86117,Timber,,wh1zn8fp
+776,83.91382,28.78617,Timber,,wh1zn960
+777,83.31382,29.16117,Timber,,wh1zn8f6
+778,81.58882,29.76117,Timber,,wh1zn8fm
+779,82.71382,27.73617,Timber,,wh1znd6k
+780,80.98882,28.86117,Timber,,wh1zn874
+781,81.96382,30.21117,Timber,,wh1zn8gh
+782,85.11382,28.41117,Timber,,wh1zn8gj
+783,81.36382,29.83617,Timber,,wh1zn87m
+784,83.76382,28.93617,Timber,,wh1zn87e
+785,83.01382,29.53617,Timber,,wh1zn8e8
+786,81.73882,29.91117,Timber,,wh1znw7x
+787,87.43882,27.66117,Timber,,wh1zn97t
+788,88.03882,27.51117,Timber,,wh1zn8gu
+789,81.73882,30.13617,Timber,,wh1zn8s7
+790,83.53882,28.93617,Timber,,wh1zn8u6
+791,86.53882,27.73617,Timber,,wh1zn8s8
+792,82.33882,29.98617,Timber,,wh1zn8m8
+793,81.88882,29.46117,Timber,,wh1yyww8
+794,86.61382,27.96117,Timber,,wh1zn8x2
+795,86.91382,27.66117,Timber,,wh1zn8rd
+796,86.61382,27.96117,Timber,,wh1znb72
+797,86.91382,27.66117,Timber,,wh1znbvu
+798,86.61382,27.96117,Timber,,wh1znbyj

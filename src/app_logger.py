@@ -1,4 +1,3 @@
-from pytz import timezone
 from pathlib import Path
 import logging
 from logging.handlers import RotatingFileHandler
@@ -36,8 +35,11 @@ class Logger:
         )
         self.handler.setFormatter(formatter)
 
-        # Add the handler to the logger
-        self.logger.addHandler(self.handler)
+        # Guard against duplicate handlers when multiple Logger instances
+        # share the same logging.getLogger(name) — prevents log duplication
+        # and unbounded file growth.
+        if not self.logger.handlers:
+            self.logger.addHandler(self.handler)
 
     @staticmethod
     def resource_path(rel_path):
@@ -59,7 +61,7 @@ class Logger:
         """
         
         log_message = {
-            "timestamp": datetime.now(timezone('Asia/Kolkata')).strftime("%Y-%m-%d %H:%M:%S"),
+            "timestamp": datetime.now().astimezone().strftime("%Y-%m-%d %H:%M:%S"),
             "level": status,
             "message": info,
             "module": __name__

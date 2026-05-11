@@ -83,7 +83,7 @@ CLASS_NAMES = [
     'AD_H1', 'AD_H2', 'MR_H1 flat roof', 'MR_H1 gable roof', 'MR_H2 flat roof',
     'MR_H2 gable roof', 'MR_H3', 'Metal_H1', 'Non_Building', 'RCC_H1 flat roof',
     'RCC_H1 gable roof', 'RCC_H2 flat roof', 'RCC_H2 gable roof', 'RCC_H3 flat roof',
-    'RCC_H3 gable roof', 'RCC_H4 flat roof', 'RCC_H4 gaqble roof', 'RCC_H5',
+    'RCC_H3 gable roof', 'RCC_H4 flat roof', 'RCC_H4 gable roof', 'RCC_H5',
     'RCC_H6', 'RCC_OS_H1', 'RCC_OS_H2', 'RCC_OS_H3', 'RCC_OS_H4', 'Timber',
 ]
 

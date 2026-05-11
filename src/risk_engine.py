@@ -47,7 +47,7 @@ CLASS_TO_ARCHETYPE = {
     "RCC_H3 flat roof":   "CR_LFINF_DUL_H3",
     "RCC_H3 gable roof":  "CR_LFINF_DUL_H3",
     "RCC_H4 flat roof":   "CR_LFINF_DUL_H4",
-    "RCC_H4 gaqble roof": "CR_LFINF_DUL_H4",
+    "RCC_H4 gable roof":  "CR_LFINF_DUL_H4",
     "RCC_H5":             "CR_LFINF_DUL_H5",
     "RCC_H6":             "CR_LFINF_DUL_H6",
     # RCC on soft storey / open ground

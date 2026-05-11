@@ -180,7 +180,7 @@ class ObjectDetectionProcessor(QObject):
         try:
             image_raw = self._tf.io.read_file(str(image_path))
             image = self._tf.image.decode_image(image_raw, channels=3)
-            image_resized = self._tf.image.resize(image, (3600, 3600))
+            image_resized = self._tf.image.resize(image, (1024, 1024))
             image_norm = self._tf.cast(image_resized, self._tf.float32) / 255.0
             return self._tf.expand_dims(image_norm, axis=0)
         except Exception as e:
@@ -247,14 +247,14 @@ class ObjectDetectionProcessor(QObject):
                     
                     # Convert to byte strings to match existing logic
                     raw_classes = []
-                    for idx in class_indices:
-                        name = coco_map.get(idx, f"Class_{idx}")
+                    for cls_idx in class_indices:
+                        name = coco_map.get(cls_idx, f"Class_{cls_idx}")
                         raw_classes.append(name.encode('utf-8'))
                     raw_classes = np.array(raw_classes)
                 else:
                     raise KeyError("Model output missing 'detection_class_entities' or 'detection_classes'")
 
-                original_image = self._tf.squeeze(image_tensor).numpy()  # [3600×3600×3]
+                original_image = self._tf.squeeze(image_tensor).numpy()  # [1024×1024×3]
             except Exception as e:
                 self.logger.log_exception(f"Detection failed on {image_file.name}: {e}")
                 self.log_message.emit(f"Error processing {image_file.name}: {e}")

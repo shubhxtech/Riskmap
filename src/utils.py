@@ -101,12 +101,6 @@ def ensure_directory_exists(directory):
         logger.log_status(f"Directory already exists: {directory}")
     return directory
 
-def apply_config(obj):
-    """
-    Applies row and column grid configure with index=0, and weight =1 
-    """
-    obj.grid_rowconfigure(0, weight=1)
-    obj.grid_columnconfigure(0, weight=1)
 
 def run_cleanup(folder: Path) -> bool:
     """
@@ -130,7 +124,8 @@ def cleanup_process(check_value, folder: Path):
 def save_image(image, path, logger=None):
     try:
         cv2.imwrite(str(path), image)
-        logger.log_status(f"Saved image to {path}")
+        if logger:
+            logger.log_status(f"Saved image to {path}")
         return True, path
     except Exception as e:
         if logger:

@@ -1,7 +1,6 @@
 import sys, time, os, platform
 
 # --- CONFIGURATION ---
-import os
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 os.environ["TORCH_ALLOW_DIRECT_IMPORT"] = "1"  # Suppress CVE-2025-32434 warning
 os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True") # Prevents fragmentation OOM on 4GB GPUs
@@ -69,34 +68,6 @@ logger = Logger(__name__)
 logger.log_status("Starting App")
 
 # --- Configuration ---
-# Ensure icons exist
-def ensure_icons():
-    import qtawesome as qta
-    from PyQt5.QtCore import QSize
-    
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    assets_path = os.path.join(base_path, "assets", "icons")
-    
-    if not os.path.exists(assets_path):
-        os.makedirs(assets_path)
-    
-    down_path = os.path.join(assets_path, "arrow_down.png")
-    up_path = os.path.join(assets_path, "arrow_up.png")
-    
-    # Generate if missing
-    if not os.path.exists(down_path):
-        processed = False
-        try:
-            # We need a QApplication instance before qtawesome can work fully sometimes
-            # But main usually has one created later. 
-            # We will convert qta icons to images. 
-            # Note: qtawesome needs a QApp instance for some font loading.
-            pass 
-        except:
-            pass
-
-# We will call the actual generation inside MainApp or after App creation
-
 from config_ import Config  # Custom config module
 config = Config(logger, resolve_path("config_.ini"))
 logger.log_status(resolve_path("config_.ini"))
@@ -110,14 +81,11 @@ if not config.get_map_index_path().exists():
 ### Create a pop-up that allows you to select which models you want to download.
 
 # --- Import refactored Qt versions of feature windows ---
-a = time.time()
 from api_window import ApiWindow
 # from classification import ClassificationWindow (loaded by SplitProcessingWindow)
 # from duplicates import DuplicatesWindow  (loaded by SplitProcessingWindow)
 from model_training import Trainer
 from ui.rapid_scan_window import RapidScanWindow
-
-logger.log_status(f'Time taken to import modules: {time.time()-a}.')
 
 logger.log_status('Modules imported. Starting Main App')
 
@@ -210,8 +178,6 @@ class MainApp(QMainWindow):
 
         window.setLayout(layout)
         window.resize(pixmap.width(), pixmap.height())
-        global a
-        print(time.time()-a)
         window.exec_()
 
     def add_tab(self, WindowClass, label):
@@ -322,7 +288,7 @@ class MainApp(QMainWindow):
         
 
     
-    def show_config(root, config: Config):
+    def show_config(self, config: Config):
         # Create a dialog window as the settings panel
         window = QDialog(root)
         window.setObjectName("settings")
@@ -421,6 +387,5 @@ if __name__ == '__main__':
     icon_path = os.path.join(os.path.dirname(__file__), "app.ico")
     window = MainApp()
     window.showMaximized()
-    print(time.time()-a)
     app.setWindowIcon(QIcon(icon_path))
     sys.exit(app.exec_())
