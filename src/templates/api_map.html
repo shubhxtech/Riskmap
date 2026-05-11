@@ -76,6 +76,7 @@
     // Cache management functions for persistent map state
     function saveMapState() {
         try {
+            if (!map || typeof map.getCenter !== 'function' || !map.getCenter()) return;
             const state = {
                 center: { lat: map.getCenter().lat(), lng: map.getCenter().lng() },
                 zoom: map.getZoom(),
