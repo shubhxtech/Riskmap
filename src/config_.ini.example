@@ -35,15 +35,15 @@ model_path =
 model_url = https://tfhub.dev/google/faster_rcnn/openimages_v4/inception_resnet_v2/1?tf-hub-format=compressed, Dummy
 target_classes = House,Building,Skyscraper,Tower
 model_data_path = model_data.json
-input_dir = /Users/shubhsahu/Desktop/outputpano
-output_dir = /Users/shubhsahu/Desktop/Risk/RiskMap/src/data/classified
+input_dir = data/Processed_files
+output_dir = data/detected
 threshold = 0.30
 expand_factor = 0.10
 min_dim = 200
 
 [Duplicates]
-source_folder = /Users/shubhsahu/Desktop/Risk/RiskMap/src/data/Raw
-destination_parent_folder = /Users/shubhsahu/Desktop/Risk/RiskMap/src/data/dup
+source_folder = data/detected
+destination_parent_folder = data/Duplicates
 model_folder = ../assets/models/duplicate_checker
 image_extensions = .jpg,.jpeg,.png,.bmp,.tiff
 batch_size = 200
@@ -52,8 +52,8 @@ base_path = data/duplicates
 metadata_file_name = metadata.json
 
 [Classification]
-parent_folder = /Users/shubhsahu/Downloads/mnist_png/test/2
-output_folder = /Users/shubhsahu/Downloads/out
+parent_folder = data/duplicates
+output_folder = data/classified
 model_path = ../assets/models/classifier
 class_names = AD_H1,AD_H2,MR_H1 flat roof,MR_H1 gable roof,MR_H2 flat roof,MR_H2 gable roof,MR_H3,Metal_H1,Non_Building,RCC_H1 flat roof,RCC_H1 gable roof,RCC_H2 flat roof,RCC_H2 gable roof,RCC_H3 flat roof,RCC_H3 gable roof,RCC_H4 flat roof,RCC_H4 gable roof,RCC_H5,RCC_H6,RCC_OS_H1,RCC_OS_H2,RCC_OS_H3,RCC_OS_H4,Timber
 classif_folder_name = classified
@@ -64,12 +64,12 @@ image_extensions = .jpg,.jpeg,.png,.bmp,.tiff
 output_file = geoscatter_plot.png
 
 [Processed]
-input_folder = /Users/shubhsahu/Desktop/pano
-save_folder = /Users/shubhsahu/Desktop/outputpano
+input_folder = data/Raw
+save_folder = data/Processed
 
 [Model_Training]
-data_dir = /Users/shubhsahu/Downloads/mnist_png/train
-epochs = 2
+data_dir = data/Classified
+epochs = 10
 learning_rate = 0.001
 base_model = EfficientNetV2S
 custom_layers = 128, 64
@@ -83,6 +83,7 @@ optimizer = adam
 loss = sparse_categorical_crossentropy
 model_name = my_model.h5
 plot_name = training_plot.png
+dropout_rate = 0.5
 
 [MAP_SETTINGS]
 last_density = medium

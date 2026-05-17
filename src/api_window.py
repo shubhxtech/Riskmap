@@ -12,7 +12,7 @@ from app_logger import Logger
 import json
 from config_ import Config
 import requests
-import os, json
+import os
 from services.database import MetadataDatabase
 import math
 from templates import render_template

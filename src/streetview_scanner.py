@@ -15,16 +15,13 @@ from PyQt5.QtWebEngineWidgets import QWebEngineView
 import folium
 
 from app_logger import Logger
-logger = Logger(__name__)
-
 from config_ import Config
-config = Config(logger=logger)
 
-# Settings
-COARSE_SPACING = float(config.get_download_data()["coarse_spacing"])  # ~300m
-FINE_SPACING = float(config.get_download_data()["fine_spacing"])  # ~100m
+# Default settings — overridden at instance level from config
 RATE_LIMIT_PER_MIN = 30000
-SAVE_DB_DEFAULT = config.get_paths_data()["metadata_database_path"]
+_DEFAULT_COARSE_SPACING = 0.003
+_DEFAULT_FINE_SPACING = 0.001
+_DEFAULT_DB_PATH = "scan_data.db"
 
 class RateLimiter:
     def __init__(self, max_calls_per_minute):
@@ -59,9 +56,23 @@ class ScanThread(QThread):
 class StreetViewDensityScanner(QWidget):
     update_ui_signal = pyqtSignal(bool)
 
-    def __init__(self, city):
+    def __init__(self, city, config=None, logger=None):
         super().__init__()
         self.city = city
+        self.logger = logger or Logger(__name__)
+        self.config = config or Config(logger=self.logger)
+
+        # Read settings from config (with safe fallbacks)
+        try:
+            dl_data = self.config.get_download_data()
+            self.COARSE_SPACING = float(dl_data.get("coarse_spacing", _DEFAULT_COARSE_SPACING))
+            self.FINE_SPACING = float(dl_data.get("fine_spacing", _DEFAULT_FINE_SPACING))
+            self.DEFAULT_DB_PATH = self.config.get_paths_data().get("metadata_database_path", _DEFAULT_DB_PATH)
+        except Exception:
+            self.COARSE_SPACING = _DEFAULT_COARSE_SPACING
+            self.FINE_SPACING = _DEFAULT_FINE_SPACING
+            self.DEFAULT_DB_PATH = _DEFAULT_DB_PATH
+
         self.setWindowTitle("Street View Density-Based Scanner")
         self.init_ui()
         self.scanning = False
@@ -92,7 +103,7 @@ class StreetViewDensityScanner(QWidget):
         layout.addWidget(self.workers_input)
 
         self.dbfile_input = QLineEdit()
-        self.dbfile_input.setPlaceholderText(SAVE_DB_DEFAULT)
+        self.dbfile_input.setPlaceholderText(self.DEFAULT_DB_PATH)
         browse_btn = QPushButton("Browse DB File...")
         browse_btn.clicked.connect(self.browse_db)
 
@@ -115,8 +126,11 @@ class StreetViewDensityScanner(QWidget):
 
         self.map_view = QWebEngineView()
 
-        global config
-        self.map_file = os.path.join(config.get_download_data()["folder_name"], f'{self.city}_map.html')
+        try:
+            folder_name = self.config.get_download_data().get("folder_name", "Metadata_Maps")
+        except Exception:
+            folder_name = "Metadata_Maps"
+        self.map_file = os.path.join(folder_name, f'{self.city}_map.html')
         layout.addWidget(self.map_view, stretch=1)
 
         self.setLayout(layout)
@@ -127,46 +141,41 @@ class StreetViewDensityScanner(QWidget):
             self.dbfile_input.setText(fname)
 
     def init_db(self):
-        conn = sqlite3.connect(self.db_path)
-        cur = conn.cursor()
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS coords (
-                id INTEGER PRIMARY KEY,
-                lat REAL, lon REAL,
-                stage TEXT, scanned INTEGER DEFAULT 0
-            )""")
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS results (
-                coord_id INTEGER, pano_id TEXT,
-                FOREIGN KEY(coord_id) REFERENCES coords(id)
-            )""")
+        with sqlite3.connect(self.db_path) as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS coords (
+                    id INTEGER PRIMARY KEY,
+                    lat REAL, lon REAL,
+                    stage TEXT, scanned INTEGER DEFAULT 0
+                )""")
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS results (
+                    coord_id INTEGER, pano_id TEXT,
+                    FOREIGN KEY(coord_id) REFERENCES coords(id)
+                )""")
 
-
-        #### Temporary table that stores the http responses recieved when querying for metadata. Making ths as I was getting 
-        #### no "OK" responses
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS responses (
-                coord_id INTEGER, response TEXT
-            )""")
-        
-        conn.commit()
-        conn.close()
+            # Temporary table that stores the http responses received when querying for metadata
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS responses (
+                    coord_id INTEGER, response TEXT
+                )""")
+            conn.commit()
 
     def populate_coarse(self, north, south, east, west):
-        conn = sqlite3.connect(self.db_path)
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM coords")
-        if cur.fetchone()[0] == 0:
-            lat = north; batch = []
-            while lat >= south:
-                lon = west
-                while lon <= east:
-                    batch.append((lat, lon, 'coarse'))
-                    lon += COARSE_SPACING
-                lat -= COARSE_SPACING
-            cur.executemany("INSERT INTO coords(lat, lon, stage) VALUES(?, ?, ?)", batch)
-            conn.commit()
-        conn.close()
+        with sqlite3.connect(self.db_path) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM coords")
+            if cur.fetchone()[0] == 0:
+                lat = north; batch = []
+                while lat >= south:
+                    lon = west
+                    while lon <= east:
+                        batch.append((lat, lon, 'coarse'))
+                        lon += self.COARSE_SPACING
+                    lat -= self.COARSE_SPACING
+                cur.executemany("INSERT INTO coords(lat, lon, stage) VALUES(?, ?, ?)", batch)
+                conn.commit()
 
     def start_scan(self):
         if self.scanning:
@@ -179,7 +188,7 @@ class StreetViewDensityScanner(QWidget):
             east = float(self.edge_inputs["East (max lon)"].text())
             west = float(self.edge_inputs["West (min lon)"].text())
             self.max_workers = int(self.workers_input.text() or 5)
-            self.db_path = self.dbfile_input.text().strip() or SAVE_DB_DEFAULT
+            self.db_path = self.dbfile_input.text().strip() or self.DEFAULT_DB_PATH
         except ValueError:
             QMessageBox.critical(self, "Error", "Invalid input values")
             return
@@ -199,11 +208,10 @@ class StreetViewDensityScanner(QWidget):
 
     def scan_loop(self):
         while True:
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            cur.execute("SELECT id,lat,lon,stage FROM coords WHERE scanned=0 ORDER BY stage DESC LIMIT ?", (self.max_workers * 2,))
-            batch = cur.fetchall()
-            conn.close()
+            with sqlite3.connect(self.db_path) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT id,lat,lon,stage FROM coords WHERE scanned=0 ORDER BY stage DESC LIMIT ?", (self.max_workers * 2,))
+                batch = cur.fetchall()
             if not batch:
                 break
 
@@ -219,12 +227,13 @@ class StreetViewDensityScanner(QWidget):
         
 
     def update_status_ui(self, final):
-        conn = sqlite3.connect(self.db_path)
-        cur = conn.cursor()
-        cur.execute("SELECT COUNT(*) FROM coords")
-        total = cur.fetchone()[0]
-        cur.execute("SELECT COUNT(*) FROM coords WHERE scanned=1")
-        done = cur.fetchone()[0]
+        with sqlite3.connect(self.db_path) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM coords")
+            total = cur.fetchone()[0]
+            cur.execute("SELECT COUNT(*) FROM coords WHERE scanned=1")
+            done = cur.fetchone()[0]
+
         self.status_label.setText(f"Scanned {done}/{total}")
         self.progress_bar.setMaximum(total)
         self.progress_bar.setValue(done)
@@ -234,8 +243,6 @@ class StreetViewDensityScanner(QWidget):
             self.size_label.setText(f"DB Size: {size/1e6:.2f} MB")
         except Exception:
             self.size_label.setText("DB Size: N/A")
-
-        conn.close()
         self.refresh_map()
         if final:
             self.timer.stop()
@@ -254,28 +261,25 @@ class StreetViewDensityScanner(QWidget):
         
         data = self.safe_get(lat=lat, lon=lon).json()
         with self.db_lock:
-            conn = sqlite3.connect(self.db_path)
-            cur = conn.cursor()
-            cur.execute("UPDATE coords SET scanned=1 WHERE id=?", (coord_id,))
-            if data.get("status")=="OK":
-                cur.execute("INSERT INTO results(coord_id,pano_id) VALUES(?,?)", (coord_id, data.get("pano_id")))
-                if stage=='coarse':
-                    for dlat in (-FINE_SPACING, 0, FINE_SPACING):
-                        for dlon in (-FINE_SPACING, 0, FINE_SPACING):
-                            if dlat==0 and dlon==0: continue
-                            cur.execute("INSERT INTO coords(lat,lon,stage) VALUES(?,?,?)", (lat+dlat, lon+dlon, 'fine'))
-            
-            cur.execute("INSERT INTO responses(coord_id,response) VALUES(?,?)", (coord_id, data.get("status")))
-            
-            conn.commit()
-            conn.close()
+            with sqlite3.connect(self.db_path) as conn:
+                cur = conn.cursor()
+                cur.execute("UPDATE coords SET scanned=1 WHERE id=?", (coord_id,))
+                if data.get("status")=="OK":
+                    cur.execute("INSERT INTO results(coord_id,pano_id) VALUES(?,?)", (coord_id, data.get("pano_id")))
+                    if stage=='coarse':
+                        for dlat in (-self.FINE_SPACING, 0, self.FINE_SPACING):
+                            for dlon in (-self.FINE_SPACING, 0, self.FINE_SPACING):
+                                if dlat==0 and dlon==0: continue
+                                cur.execute("INSERT INTO coords(lat,lon,stage) VALUES(?,?,?)", (lat+dlat, lon+dlon, 'fine'))
+                
+                cur.execute("INSERT INTO responses(coord_id,response) VALUES(?,?)", (coord_id, data.get("status")))
+                conn.commit()
 
     def refresh_map(self):
-        conn = sqlite3.connect(self.db_path)
-        cur = conn.cursor()
-        cur.execute("SELECT lat,lon,stage,scanned FROM coords")
-        records = cur.fetchall()
-        conn.close()
+        with sqlite3.connect(self.db_path) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT lat,lon,stage,scanned FROM coords")
+            records = cur.fetchall()
 
         if not records: 
             return

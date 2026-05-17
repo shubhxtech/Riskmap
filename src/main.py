@@ -290,7 +290,7 @@ class MainApp(QMainWindow):
     
     def show_config(self, config: Config):
         # Create a dialog window as the settings panel
-        window = QDialog(root)
+        window = QDialog(self)
         window.setObjectName("settings")
         window.resize(800, 800)
 

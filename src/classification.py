@@ -209,7 +209,6 @@ class Classify:
 
     def make_folders(self):
         names = self.config.get_foldr_names_classif().split(',')
-        foldr_name = self.config.get_classif_folder_name() # Is dead code
         foldr = Path(self.output_folder)
         for i in names:
             dir = foldr / i
@@ -442,9 +441,9 @@ class ClassificationWindow(QtWidgets.QWidget):
             
         # 2. Auto-discover trained custom Keras models in current directory
         try:
-            cwd = Path.cwd()
+            src_dir = Path(__file__).parent
             for ext in ('*.h5', '*.keras'):
-                for model_file in cwd.glob(ext):
+                for model_file in src_dir.glob(ext):
                     # Only register if it has a classes sidecar (e.g. my_model.h5.classes.json)
                     sidecar = model_file.with_name(model_file.name + '.classes.json')
                     if sidecar.exists():
@@ -776,6 +775,13 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.text_output.verticalScrollBar().setValue(self.text_output.verticalScrollBar().maximum())
 
     def on_process_done(self, valid: bool):
-        self.worker.terminate()
-        self.timer_thread.terminate()
+        # Graceful shutdown instead of unsafe terminate()
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            self.worker.quit()
+            self.worker.wait(5000)
+        if hasattr(self, 'timer_thread'):
+            self.timer_thread.running = False
+            self.timer_thread.quit()
+            self.timer_thread.wait(2000)
+        self.process_button.setEnabled(True)
         self.model_status_label.setText("Processing Complete!")

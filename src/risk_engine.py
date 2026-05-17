@@ -19,7 +19,7 @@ from typing import Dict, List, Tuple
 import json, os
 
 # Path for user-defined typologies (persistent across app restarts)
-CUSTOM_TYPOLOGIES_FILE = os.path.join(os.getcwd(), "custom_typologies.json")
+CUSTOM_TYPOLOGIES_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "custom_typologies.json")
 
 # ─────────────────────────────────────────────────────────────────────────────
 #  1. BUILDING CLASS → STRUCTURAL ARCHETYPE MAPPING
@@ -448,6 +448,18 @@ class ScenarioParams:
     Vs30:       float = 400.0     # m/s  (400 = stiff soil, 760 = rock)
     fault_type: str   = "unspecified"
     n_samples:  int   = 500
+
+    def __post_init__(self):
+        if not (0.0 < self.Mw <= 10.0):
+            raise ValueError(f"Magnitude Mw must be in (0, 10], got {self.Mw}")
+        if self.depth_km <= 0:
+            raise ValueError(f"Depth must be > 0 km, got {self.depth_km}")
+        if self.Vs30 <= 0:
+            raise ValueError(f"Vs30 must be > 0 m/s, got {self.Vs30}")
+        if self.n_samples < 1:
+            raise ValueError(f"n_samples must be >= 1, got {self.n_samples}")
+        if self.fault_type not in ("unspecified", "strike-slip", "normal", "reverse"):
+            raise ValueError(f"Invalid fault_type: {self.fault_type}")
 
 
 @dataclass

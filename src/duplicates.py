@@ -244,9 +244,10 @@ class MplCanvas(FigureCanvas):
         # self.axes.set_facecolor('#ffffff')
         super(MplCanvas, self).__init__(fig)
         self.setParent(parent)
+        from PyQt5.QtWidgets import QSizePolicy
         FigureCanvas.setSizePolicy(self,
-                                   branch_policy := 1 | 2, # QSizePolicy.Expanding
-                                   branch_policy)
+                                   QSizePolicy.Expanding,
+                                   QSizePolicy.Expanding)
         FigureCanvas.updateGeometry(self)
 
 
@@ -269,8 +270,6 @@ class DuplicateModelLoaderThread(QThread):
 
 
 class DuplicatesWorker(QObject):
-    progress_updated = pyqtSignal(int)
-    processing_complete = pyqtSignal(float)
     progress_updated = pyqtSignal(int)
     processing_complete = pyqtSignal(float)
     error_occurred  = pyqtSignal(str)
@@ -344,7 +343,6 @@ class DuplicatesWindow(QWidget):
 
         self.destination_folder_btn = QPushButton("Select Output Folder")
         self.destination_folder_label = QLabel(f"{self.destination_folder}")
-        self.destination_folder_btn.clicked.connect(self.choose_destination_folder)
         self.destination_folder_btn.clicked.connect(self.choose_destination_folder)
         layout.addWidget(self.destination_folder_btn)
         layout.addWidget(self.destination_folder_label)
@@ -435,8 +433,6 @@ class DuplicatesWindow(QWidget):
         self.worker.moveToThread(self.worker_thread)
 
         self.worker_thread.started.connect(self.worker.run)
-        self.worker.progress_updated.connect(self.progress_bar.setValue)
-        self.worker.processing_complete.connect(self.processing_done)
         self.worker.progress_updated.connect(self.progress_bar.setValue)
         self.worker.processing_complete.connect(self.processing_done)
         self.worker.error_occurred.connect(self.log_error)

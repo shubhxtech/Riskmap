@@ -119,16 +119,17 @@ class Config:
                 "custom_layers": "512",
                 "val_split": "0.2",
                 "seed": "123",
-                "image_height": "180",
-                "image_width": "180",
+                "img_height": "180",
+                "img_width": "180",
                 "batch_size": "32",
-                "model_names": "ResNet50, MobileNetV2, InceptionV3",
+                "model_names": "ResNet50, MobileNetV2, InceptionV3, EfficientNetV2S",
                 "freeze_original_layers": "True",
                 "extra_layer_type": "Dense",
-                "optimizer": "Adam",  # corrected from optimizer_type
-                "loss_type": "sparse_categorical_crossentropy",
+                "optimizer": "Adam",
+                "loss": "sparse_categorical_crossentropy",
                 "model_name": "custom_resnet_model",
-                "plot_name": "training_plot"
+                "plot_name": "training_plot",
+                "dropout_rate": "0.5"
             }
 
             with open(self.config_file, "w") as configfile:

@@ -48,7 +48,6 @@ def get_downloads_folder():
     logger = _Logger(__name__)
     try:
         downloads_path = Path.home() / "Downloads"
-        print(downloads_path)
         logger.log_status(f"Downloads folder path resolved: {downloads_path}","DEBUG")
         return downloads_path
     except Exception as e:

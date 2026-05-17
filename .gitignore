@@ -66,6 +66,7 @@ Desktop.ini
 logs/
 *.log
 src/app_logs.json
+src/config_.ini
 
 # Data and Models
 data/
