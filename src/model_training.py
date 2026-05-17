@@ -628,9 +628,19 @@ class Trainer(QWidget):
         self.layer_config_input.textChanged.connect(self.update_model_viz)
         self._add_param_row(form_layout, 13, "Custom Layers", self.layer_config_input)
 
+        self.dropout_rate_input = QLineEdit("0.5")
+        self.dropout_rate_input.setPlaceholderText("0.0 – 1.0  (0.0 = no dropout)")
+        self.dropout_rate_input.setToolTip(
+            "Dropout rate applied after each Dense layer in the head.\n"
+            "0.5 = randomly drop 50% of neurons during training to reduce overfitting.\n"
+            "Set to 0.0 to disable dropout entirely."
+        )
+        self.dropout_rate_input.textChanged.connect(self.update_model_viz)
+        self._add_param_row(form_layout, 14, "Dropout Rate", self.dropout_rate_input)
+
         self.freeze_input = QComboBox()
         self.freeze_input.addItems(["True", "False"])
-        self._add_param_row(form_layout, 14, "Freeze Base", self.freeze_input)
+        self._add_param_row(form_layout, 15, "Freeze Base", self.freeze_input)
 
         self.optimizer_selector = QComboBox()
         self.optimizer_selector.addItems(["adam", "sgd", "rmsprop"])
@@ -976,6 +986,7 @@ class Trainer(QWidget):
                 "learning_rate": self.lr_input.text(),
                 "base_model": self.model_selector.currentText(),
                 "custom_layers": self.layer_config_input.text(),
+                "dropout_rate": self.dropout_rate_input.text(),
                 "val_split": self.val_split_input.text(),
                 "seed": self.seed_input.text(),
                 "img_height": self.img_height_input.text(),
@@ -1357,15 +1368,19 @@ class Trainer(QWidget):
             custom_layers_str = self.layer_config_input.text()
             custom_layers_desc = "None"
 
+            # Read dropout rate — 0.0 means no dropout
+            try:
+                dropout_rate = float(self.dropout_rate_input.text().strip())
+            except (ValueError, AttributeError):
+                dropout_rate = 0.5  # safe fallback
+
             if custom_layers_str:
                 try:
                     custom_layers = [int(x.strip()) for x in custom_layers_str.split(',') if x.strip()]
                     for size in custom_layers:
                         layers_list.append(MockLayer("Dense", units=size))
-                        # Dropout (0.5) regularizes the head to prevent overfitting
-                        # on a small fine-tuning dataset. This is standard practice
-                        # for transfer learning.
-                        layers_list.append(MockLayer("Dropout"))
+                        if dropout_rate > 0.0:
+                            layers_list.append(MockLayer(f"Dropout({dropout_rate})"))
                     custom_layers_desc = str(custom_layers)
                 except ValueError:
                     self.logger.log_status("Invalid Custom Layer input for viz.")

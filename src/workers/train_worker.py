@@ -173,6 +173,13 @@ class TrainWorker(QObject):
             except Exception:
                 self.custom_layers = [256]  # Default fallback
 
+            # Parse dropout rate (0.0 = disabled)
+            try:
+                self.dropout_rate = float(self.trainer.dropout_rate_input.text().strip())
+                self.dropout_rate = max(0.0, min(1.0, self.dropout_rate))  # clamp [0,1]
+            except (ValueError, AttributeError):
+                self.dropout_rate = 0.5  # safe default
+
             self.val_split             = float(self.trainer.val_split_input.text())
             self.seed                  = int(self.trainer.seed_input.text())
             self.img_height            = int(self.trainer.img_height_input.text())
@@ -278,7 +285,11 @@ class TrainWorker(QObject):
             x = base(inputs, training=False)           # inference mode for BN layers when frozen
             for size in self.custom_layers:
                 x = keras.layers.Dense(size, activation='relu')(x)
-                x = keras.layers.Dropout(0.5)(x)
+                if self.dropout_rate > 0.0:
+                    x = keras.layers.Dropout(self.dropout_rate)(x)
+                    self.log(f"  + Dropout({self.dropout_rate}) after Dense({size})")
+                else:
+                    self.log(f"  + Dense({size}) [no dropout]")
 
             # Output dtype must be float32 even under mixed_float16
             outputs = keras.layers.Dense(num_classes, activation='softmax',
