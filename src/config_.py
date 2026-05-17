@@ -287,8 +287,8 @@ class Config:
         return {
             "model_path":    "",
             "target_classes":"House,Building,Skyscraper,Tower",
-            "input_dir":     r"C:\Users\lenovo\Desktop\2_Intern_6mth\pyQT\data\Processed_files",
-            "output_dir":    r"C:\Users\lenovo\Desktop\2_Intern_6mth\pyQT\data\detected",
+            "input_dir":     "data/Processed",
+            "output_dir":    "data/detected",
             "threshold":     "0.3",
             "expand_factor": "0.1",
             "min_dim":       "200"

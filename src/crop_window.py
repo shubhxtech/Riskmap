@@ -38,9 +38,19 @@ class ImageProcessorWorker(QObject):
             item.strip() for item in self.config.get_allowed_file_types().split(',')
         )
 
-    def _parts_of_img(self, img, dimensions: tuple[int, int] = (100, 100)) -> list:
-        x, y = dimensions
-        return [img[0:y, 0:x//2], img[0:y, x//2:x]] if x > 0 and y > 0 else []
+    def _parts_of_img(self, img, blur_region: int) -> list:
+        """Split image into left and right halves, cropping off the bottom blur region.
+        Uses actual image dimensions (not config values) to avoid empty slices."""
+        if img is None:
+            return []
+        actual_h, actual_w = img.shape[:2]
+        crop_y = max(0, actual_h - blur_region)   # remove bottom blur strip
+        split_x = actual_w // 2                    # split at actual midpoint
+        if crop_y == 0 or split_x == 0:
+            return []
+        left  = img[0:crop_y, 0:split_x]
+        right = img[0:crop_y, split_x:actual_w]
+        return [left, right]
 
     def _save_image_with_coords(self, image, save_folder: Path, name, coordinates=(0, 0)):
         save_path = save_folder/f'{name}_{coordinates}.jpg'
@@ -56,21 +66,20 @@ class ImageProcessorWorker(QObject):
         return files
 
     def _process_file(self, image_path: Path) -> dict:
-        size_img = self.config.get_image_size()
-        if isinstance(size_img, str):
-            size_img = tuple(int(i) for i in size_img.split(','))
         blur_region = self.config.get_blur_size()
 
         image = cv2.imread(str(image_path))
         if image is None:
             return {"source_file": str(image_path), "saved_files": [], "success": False}
 
-        images = self._parts_of_img(image, (size_img[0], size_img[1] - blur_region))
+        images = self._parts_of_img(image, blur_region)
 
         saved_files = []
         for x, img in enumerate(images):
-            if img is not None:
-                success, path = self._save_image_with_coords(img, self.save_folder, name=image_path.stem, coordinates=(0, x))
+            if img is not None and img.size > 0:
+                success, path = self._save_image_with_coords(
+                    img, self.save_folder, name=image_path.stem, coordinates=(0, x)
+                )
                 if success:
                     saved_files.append(str(path))
 
@@ -523,15 +532,21 @@ class CropWindow(QWidget):
         self.process_button.clicked.connect(self.start_processing)
     
     def update_image_display(self):
-        input_folder = Path(self.folder_input.text())
-        image_paths = list(input_folder.glob("*"))
+        # Resolve relative paths so glob works from any working directory
+        raw_text = self.folder_input.text()
+        input_folder = Path(resolve_path(raw_text)) if raw_text else Path(resolve_path("data/Raw"))
         self.supported_files = tuple(
             item.strip() for item in self.config.get_allowed_file_types().split(',')
         )
-        
+
+        if not input_folder.exists():
+            self.logger.log_status(f"Input folder not found: {input_folder}")
+            return
+
         # Load up to 5 images for animation
-        valid_images = [p for p in image_paths if p.suffix.lower() in self.supported_files][:5]
-        
+        all_paths = list(input_folder.glob("*"))
+        valid_images = [p for p in all_paths if p.suffix.lower() in self.supported_files][:5]
+
         if valid_images:
             self.logger.log_status(f"Loaded {len(valid_images)} images for animation")
             image_list = []
@@ -539,10 +554,12 @@ class CropWindow(QWidget):
                 img = cv2.imread(str(img_path))
                 if img is not None:
                     image_list.append(img)
-            
+
             if image_list:
                 blur_height = self.config.get_blur_size()
                 self.image_view.set_image(image_list, blur_height)
+        else:
+            self.logger.log_status(f"No supported images found in: {input_folder}")
 
     @pyqtSlot()
     def change_save_folder(self):
@@ -562,6 +579,11 @@ class CropWindow(QWidget):
 
     @pyqtSlot()
     def start_processing(self):
+        # Clean up any previous run to prevent doubled signals
+        if self.threader is not None and self.threader.isRunning():
+            self.threader.quit()
+            self.threader.wait()
+
         self.process_button.setEnabled(False)
         self.browse_button.setEnabled(False)
         self.status_label.setText("Status: Processing...")
@@ -577,6 +599,10 @@ class CropWindow(QWidget):
         self.worker.file_processed.connect(self.on_file_processed)
         self.worker.processing_complete.connect(self.on_processing_complete)
         self.worker.error_occurred.connect(self.on_error)
+
+        # Clean up thread when done
+        self.worker.processing_complete.connect(self.threader.quit)
+        self.worker.error_occurred.connect(self.threader.quit)
 
         self.threader.start()
 
@@ -595,20 +621,9 @@ class CropWindow(QWidget):
         try:
             new_blur_height = self.height_input.text()
             self.config.set_blur_size(new_blur_height)
-            
-            # Update preview
-            input_folder = Path(self.folder_input.text())
-            image_paths = list(input_folder.glob("*"))
 
-            self.supported_files = tuple(
-            item.strip() for item in self.config.get_allowed_file_types().split(',')
-            )
-            first_image_path = next((p for p in image_paths if p.suffix.lower() in self.supported_files), None)
-
-            if first_image_path:
-                img = cv2.imread(str(first_image_path))
-                self.image_view.set_image(img, int(new_blur_height))
-
+            # Reload all images so multi-image animation is preserved
+            self.update_image_display()
             self.logger.log_status(f"Crop blur height updated to {new_blur_height}px")
 
         except Exception as e:
@@ -625,10 +640,17 @@ class CropWindow(QWidget):
         self.status_label.setText(f"Completed! {count} files processed.")
         self.process_button.setEnabled(True)
         self.browse_button.setEnabled(True)
-        self.threader.terminate()
+        # Safely shut down thread (quit() + wait() instead of terminate())
+        if self.threader:
+            self.threader.quit()
+            self.threader.wait()
 
     def on_error(self, message):
         self.status_label.setText(f"Error: {message}")
         self.process_button.setEnabled(True)
         self.browse_button.setEnabled(True)
+        # Clean up thread on error too
+        if self.threader:
+            self.threader.quit()
+            self.threader.wait()
 
