@@ -644,7 +644,7 @@ class Trainer(QWidget):
 
         self.optimizer_selector = QComboBox()
         self.optimizer_selector.addItems(["adam", "sgd", "rmsprop"])
-        self._add_param_row(form_layout, 15, "Optimizer", self.optimizer_selector)
+        self._add_param_row(form_layout, 16, "Optimizer", self.optimizer_selector)
 
         self.loss_selector = QComboBox()
         self.loss_selector.addItems(["sparse_categorical_crossentropy", "categorical_crossentropy"])
@@ -652,16 +652,16 @@ class Trainer(QWidget):
             "Use 'sparse_categorical_crossentropy' when labels are integers (default).\n"
             "Use 'categorical_crossentropy' only if labels are one-hot encoded."
         )
-        self._add_param_row(form_layout, 16, "Loss Function", self.loss_selector)
+        self._add_param_row(form_layout, 17, "Loss Function", self.loss_selector)
 
         # ── Misc section ──
-        self._add_section_header(form_layout, 17, "MISC")
+        self._add_section_header(form_layout, 18, "MISC")
 
         self.seed_input = QLineEdit("42")
-        self._add_param_row(form_layout, 18, "Seed", self.seed_input)
+        self._add_param_row(form_layout, 19, "Seed", self.seed_input)
 
         self.plot_name_input = QLineEdit("training_plot.png")
-        self._add_param_row(form_layout, 19, "Plot Filename", self.plot_name_input)
+        self._add_param_row(form_layout, 20, "Plot Filename", self.plot_name_input)
 
         # ── Buttons ──
         btn_container = QWidget()
@@ -699,7 +699,7 @@ class Trainer(QWidget):
         btn_v.addWidget(self.start_btn)
         btn_v.addWidget(self.save_config_btn)
 
-        form_layout.addWidget(btn_container, 20, 0, 1, 3)
+        form_layout.addWidget(btn_container, 21, 0, 1, 3)
 
         # Assemble
         content_layout = QVBoxLayout()
