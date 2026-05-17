@@ -89,7 +89,7 @@ class ApiWindow(QWidget):
         self.config = config
         self.secrets_path = Path(resolve_path(config.get_paths_data()["secrets_path"]))
         print("Reached before set api key")
-        QTimer.singleShot(0, lambda: self.set_api_key(self.secrets_path))
+        QTimer.singleShot(600, lambda: self.set_api_key(self.secrets_path))
         self.FOUND_COORDS = []
         self.region = self.config.get_general_data()["region"]
         # Use region-specific database path instead of generic scan_data.db
@@ -120,42 +120,113 @@ class ApiWindow(QWidget):
         self.logger.log_status(f"Using database path: {db_path}")
         return db_path
 
-    def set_api_key(self, path:Path):
+    def set_api_key(self, path: Path):
+        """Show API key entry dialog if no key exists, then initialise the map."""
         print("In set api key")
         if not path.exists():
-            # Create the dialog with optimized settings
-            dialog = QInputDialog(self)
-            dialog.setWindowTitle("Enter API Key")
-            dialog.setLabelText("Paste your Google Maps API key:")
-            
-            # Set fixed size instead of resize (more efficient)
-            dialog.setFixedWidth(450)
-            dialog.setMinimumHeight(100)
+            self._show_api_key_dialog(path)
+        else:
+            # Key file already exists — just load + setup map
+            load_dotenv(dotenv_path=path, override=True)
+            # Also inject directly into os.environ as a fallback
+            if not os.environ.get("API_KEY"):
+                try:
+                    with open(path) as f:
+                        for line in f:
+                            if line.startswith("API_KEY="):
+                                os.environ["API_KEY"] = line.split("=", 1)[1].strip()
+                                break
+                except Exception:
+                    pass
+            self.setup_map()
 
-            # Pre-calculate center position to avoid lag
-            main_window = self.window()
-            if main_window:
-                # Get geometries once
-                parent_rect = main_window.frameGeometry()
-                dialog_width = 450
-                dialog_height = 150
-                
-                # Calculate center position
-                x = parent_rect.x() + (parent_rect.width() - dialog_width) // 2
-                y = parent_rect.y() + (parent_rect.height() - dialog_height) // 2
-                
-                dialog.move(x, y)
+    def _show_api_key_dialog(self, path: Path):
+        """
+        Show a non-blocking custom dialog for API key entry.
+        Using a proper QDialog with QLineEdit prevents the UI freeze
+        caused by QInputDialog.exec_() running before the main window
+        is fully painted.
+        """
+        from PyQt5.QtWidgets import QDialog, QDialogButtonBox
 
-            # Show dialog (blocking but optimized)
-            if dialog.exec_() == QInputDialog.Accepted:
-                api_key = dialog.textValue().strip()
-                if api_key:
-                    with open(path, "w") as f:
-                        f.write(f"API_KEY={api_key}\n")
-                    print("Wrote API key to", path)
+        dialog = QDialog(self.window() or self)
+        dialog.setWindowTitle("Google Maps API Key Required")
+        dialog.setFixedWidth(480)
+        dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
 
-        load_dotenv(dotenv_path=Path(resolve_path(self.config.get_paths_data()["secrets_path"])))
+        dlg_layout = QVBoxLayout(dialog)
+        dlg_layout.setSpacing(12)
+        dlg_layout.setContentsMargins(24, 20, 24, 20)
+
+        # Instruction label
+        lbl = QLabel(
+            "<b>Enter your Google Maps API Key</b><br>"
+            "<span style='font-size:12px; color:#5f6368;'>"
+            "You can paste it here. The key is saved to a local <code>.env</code> file "
+            "and is never transmitted elsewhere.</span>"
+        )
+        lbl.setWordWrap(True)
+        lbl.setTextFormat(Qt.RichText)
+        dlg_layout.addWidget(lbl)
+
+        # Key input field — QLineEdit supports Ctrl+V paste natively
+        key_input = QLineEdit()
+        key_input.setPlaceholderText("AIza...")
+        key_input.setMinimumHeight(36)
+        key_input.setEchoMode(QLineEdit.Normal)
+        dlg_layout.addWidget(key_input)
+
+        # Error label (hidden until validation fails)
+        err_lbl = QLabel("")
+        err_lbl.setStyleSheet("color: #c5221f; font-size: 11px;")
+        err_lbl.setVisible(False)
+        dlg_layout.addWidget(err_lbl)
+
+        # Buttons
+        btn_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        btn_box.button(QDialogButtonBox.Ok).setText("Save & Load Map")
+        btn_box.button(QDialogButtonBox.Ok).setMinimumHeight(36)
+        btn_box.button(QDialogButtonBox.Cancel).setMinimumHeight(36)
+        dlg_layout.addWidget(btn_box)
+
+        def _on_accept():
+            api_key = key_input.text().strip()
+            if not api_key:
+                err_lbl.setText("⚠  API key cannot be empty.")
+                err_lbl.setVisible(True)
+                return
+            if len(api_key) < 20:
+                err_lbl.setText("⚠  That doesn't look like a valid API key.")
+                err_lbl.setVisible(True)
+                return
+            # Write to .env file
+            try:
+                path.parent.mkdir(parents=True, exist_ok=True)
+                with open(path, "w") as f:
+                    f.write(f"API_KEY={api_key}\n")
+                print("Wrote API key to", path)
+            except Exception as e:
+                self.logger.log_exception(f"Failed to write API key: {e}")
+                err_lbl.setText(f"⚠  Could not save key: {e}")
+                err_lbl.setVisible(True)
+                return
+            # Inject directly into os.environ so load_dotenv failures don't matter
+            os.environ["API_KEY"] = api_key
+            dialog.accept()
+
+        btn_box.accepted.connect(_on_accept)
+        btn_box.rejected.connect(dialog.reject)
+
+        # Focus the input so the user can paste immediately
+        key_input.setFocus()
+
+        result = dialog.exec_()
+        # Whether accepted or cancelled, attempt map setup
+        # (setup_map will validate and show an appropriate error if key is missing)
+        load_dotenv(dotenv_path=path, override=True)
         self.setup_map()
+
+
 
     def setup_ui(self):
         # 1. Main Layout (Vertical: Map Area + Bottom Panel)
@@ -525,11 +596,13 @@ class ApiWindow(QWidget):
         self.view_results_btn.clicked.connect(self.show_results_view)
         action_layout.addWidget(self.view_results_btn)
         
-        self.settings_btn = QPushButton("  Settings")
-        self.settings_btn.setIcon(qta.icon('fa5s.cog', color='#1DA1F2'))
+        self.settings_btn = QPushButton("  Change API Key")
+        self.settings_btn.setIcon(qta.icon('fa5s.key', color='#1DA1F2'))
         self.settings_btn.setIconSize(QSize(16, 16))
         self.settings_btn.setMinimumHeight(40)
         self.settings_btn.setMinimumWidth(180)
+        self.settings_btn.setToolTip("Update your Google Maps API key")
+        self.settings_btn.clicked.connect(self._on_change_api_key)
         action_layout.addWidget(self.settings_btn)
         
         action_layout.addStretch()
@@ -956,6 +1029,18 @@ class ApiWindow(QWidget):
             self.logger.log_status(f"Executed JS: {script}")
         except Exception as e:
             self.logger.log_exception(f"JS execution failed: {e}")
+
+    def _on_change_api_key(self):
+        """Allow the user to update their Google Maps API key at runtime."""
+        # Remove existing .env so the dialog is shown fresh
+        try:
+            if self.secrets_path.exists():
+                self.secrets_path.unlink()
+        except Exception as e:
+            self.logger.log_exception(f"Could not remove secrets file: {e}")
+        self._show_api_key_dialog(self.secrets_path)
+
+
 
     def choose_folder(self):
         try:
