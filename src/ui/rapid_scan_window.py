@@ -85,14 +85,16 @@ class RapidScanWindow(QWidget):
                 models    = params.get("available_models", "best_model")
                 ext       = params.get("model_ext", ".pth")
                 first     = models.split(",")[0].strip()
-                return str(Path(model_dir) / (first + ext))
+                candidate = str(Path(model_dir) / (first + ext))
+                # Return path even if file doesn't exist — user can browse
+                return candidate
         except Exception:
             pass
         here = (
             Path(__file__).parent.parent.parent
             / "assets" / "models" / "classifier" / "best_model.pth"
         )
-        return str(here) if here.exists() else ""
+        return str(here)
 
     # ── Global stylesheet ─────────────────────────────────────────────────────
     def _apply_stylesheet(self):
@@ -383,10 +385,47 @@ class RapidScanWindow(QWidget):
         ctrl_layout.addStretch()
         content_splitter.addWidget(ctrl_panel)
 
-        # ── Right: log area only ──────────────────────────────────────────────
+        # ── Right: video preview + log area ─────────────────────────────────────
         log_outer = QWidget()
         lo = QVBoxLayout(log_outer)
         lo.setContentsMargins(0, 0, 0, 0); lo.setSpacing(6)
+
+        # ── Video preview label ───────────────────────────────────────────────
+        self.video_label = QLabel("No video loaded")
+        self.video_label.setAlignment(Qt.AlignCenter)
+        self.video_label.setMinimumHeight(180)
+        self.video_label.setStyleSheet(
+            f"background:{BG_CARD}; border:1px solid {BORDER}; "
+            f"border-radius:8px; color:{TXT_MID}; font-size:12px;"
+        )
+        lo.addWidget(self.video_label, 2)
+
+        # ── Playback controls (hidden until video is loaded) ──────────────────
+        self.playback_controls = QWidget()
+        pc_layout = QHBoxLayout(self.playback_controls)
+        pc_layout.setContentsMargins(0, 0, 0, 0)
+        pc_layout.setSpacing(6)
+
+        self.btn_play_pause = QPushButton("⏸")
+        self.btn_play_pause.setFixedWidth(36)
+        self.btn_play_pause.setCursor(Qt.PointingHandCursor)
+        self.btn_play_pause.clicked.connect(self.toggle_playback)
+        pc_layout.addWidget(self.btn_play_pause)
+
+        self.video_slider = QSlider(Qt.Horizontal)
+        self.video_slider.setRange(0, 0)
+        self.video_slider.valueChanged.connect(self._on_slider_value_changed)
+        pc_layout.addWidget(self.video_slider, 1)
+
+        self.frame_lbl = QLabel("0 / 0")
+        self.frame_lbl.setStyleSheet(
+            f"color:{TXT_MID}; font-size:10px; font-family:{FONT_MONO};"
+        )
+        self.frame_lbl.setFixedWidth(80)
+        pc_layout.addWidget(self.frame_lbl)
+
+        self.playback_controls.setVisible(False)
+        lo.addWidget(self.playback_controls)
 
         # Detection + Processing log
         log_splitter = QSplitter(Qt.Horizontal)
@@ -422,7 +461,7 @@ class RapidScanWindow(QWidget):
         lg.addWidget(self.log_text)
         log_splitter.addWidget(log_grp)
         log_splitter.setSizes([500, 300])
-        lo.addWidget(log_splitter)
+        lo.addWidget(log_splitter, 3)
 
         content_splitter.addWidget(log_outer)
         content_splitter.setStretchFactor(0, 0)
@@ -726,7 +765,11 @@ function clearMarkers() {{
             f"Interval: {self.spatial_interval}m  |  "
             f"Angles: {len(self.active_angles)}"
         )
-        self.video_label.setPixmap(QPixmap())
+        # Clear any previous video frame pixmap
+        try:
+            self.video_label.setPixmap(QPixmap())
+        except Exception:
+            pass
         self.playback_controls.setVisible(False)
         if self.playback_cap:
             self.playback_cap.release()

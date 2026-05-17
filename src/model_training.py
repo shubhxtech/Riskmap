@@ -364,7 +364,7 @@ class DatasetGuidelineDialog(QDialog):
 
         # ── Header bar ──
         header_frame = QFrame()
-        header_frame.setStyleSheet(f"background-color: {PALETTE['accent']}; border-radius: 0px;")
+        header_frame.setStyleSheet(f"QFrame {{ background-color: {PALETTE['accent']}; border-radius: 0px; }}")
         header_frame.setFixedHeight(64)
         hf_layout = QHBoxLayout(header_frame)
         hf_layout.setContentsMargins(24, 0, 24, 0)
@@ -382,7 +382,7 @@ class DatasetGuidelineDialog(QDialog):
 
         # ── Body ──
         body = QWidget()
-        body.setStyleSheet(f"background-color: {PALETTE['bg']};")
+        body.setStyleSheet(f"QWidget {{ background-color: {PALETTE['bg']}; }}")
         body_layout = QVBoxLayout(body)
         body_layout.setContentsMargins(24, 20, 24, 20)
         body_layout.setSpacing(14)
@@ -426,20 +426,20 @@ class DatasetGuidelineDialog(QDialog):
 
         # ── Footer ──
         footer = QFrame()
-        footer.setStyleSheet(f"background-color: {PALETTE['surface']}; border-top: 1px solid {PALETTE['border']}; border-radius: 0px;")
+        footer.setStyleSheet(f"QFrame {{ background-color: {PALETTE['surface']}; border-top: 1px solid {PALETTE['border']}; border-radius: 0px; }}")
         footer.setFixedHeight(60)
         footer_layout = QHBoxLayout(footer)
         footer_layout.setContentsMargins(20, 0, 20, 0)
         footer_layout.addStretch()
 
         cancel_btn = QPushButton("Cancel")
-        cancel_btn.setFixedWidth(90)
+        cancel_btn.setMinimumWidth(90)
         cancel_btn.clicked.connect(self.reject)
 
         open_btn = QPushButton("Browse Folder →")
         open_btn.setObjectName("ActionButton")
         open_btn.setCursor(Qt.PointingHandCursor)
-        open_btn.setFixedWidth(140)
+        open_btn.setMinimumWidth(160)
         open_btn.clicked.connect(self.accept)
 
         footer_layout.addWidget(cancel_btn)
@@ -638,6 +638,10 @@ class Trainer(QWidget):
 
         self.loss_selector = QComboBox()
         self.loss_selector.addItems(["sparse_categorical_crossentropy", "categorical_crossentropy"])
+        self.loss_selector.setToolTip(
+            "Use 'sparse_categorical_crossentropy' when labels are integers (default).\n"
+            "Use 'categorical_crossentropy' only if labels are one-hot encoded."
+        )
         self._add_param_row(form_layout, 16, "Loss Function", self.loss_selector)
 
         # ── Misc section ──
@@ -781,7 +785,7 @@ class Trainer(QWidget):
             border: 1px solid {PALETTE['border']};
         """)
         self.model_info_label.setAlignment(Qt.AlignCenter)
-        self.model_info_label.setWordWrap(False)
+        self.model_info_label.setWordWrap(True)
         info_h.addWidget(self.model_info_label, 1)
         layout.addWidget(info_row)
 
@@ -906,6 +910,10 @@ class Trainer(QWidget):
         self.structure_tree.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.structure_tree.setAlternatingRowColors(True)
         self.structure_tree.setRootIsDecorated(False)
+        # Show placeholder so users know they need to select a dataset
+        placeholder = QTreeWidgetItem(["Select a dataset folder to view structure", ""])
+        placeholder.setForeground(0, QBrush(QColor(PALETTE["text_muted"])))
+        self.structure_tree.addTopLevelItem(placeholder)
 
         layout.addWidget(self.structure_tree)
         group.setLayout(layout)
@@ -1354,6 +1362,9 @@ class Trainer(QWidget):
                     custom_layers = [int(x.strip()) for x in custom_layers_str.split(',') if x.strip()]
                     for size in custom_layers:
                         layers_list.append(MockLayer("Dense", units=size))
+                        # Dropout (0.5) regularizes the head to prevent overfitting
+                        # on a small fine-tuning dataset. This is standard practice
+                        # for transfer learning.
                         layers_list.append(MockLayer("Dropout"))
                     custom_layers_desc = str(custom_layers)
                 except ValueError:

@@ -231,6 +231,9 @@ FRAGILITY_LIB = {
     },
 }
 
+# Load user-defined typologies from disk at import time so they're always available
+load_custom_typologies()
+
 # Loss ratios per damage state (central values, from HAZUS / GEM)
 LOSS_RATIO = {
     "None": 0.00,

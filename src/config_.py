@@ -285,7 +285,7 @@ class Config:
         for BUILDING_DETECTION. Format: {option_name: string_value}.
         """
         return {
-            "model_path":    r"C:\Users\lenovo\Desktop\2_Intern_6mth\pyQT\models\faster_rcnn",
+            "model_path":    "",
             "target_classes":"House,Building,Skyscraper,Tower",
             "input_dir":     r"C:\Users\lenovo\Desktop\2_Intern_6mth\pyQT\data\Processed_files",
             "output_dir":    r"C:\Users\lenovo\Desktop\2_Intern_6mth\pyQT\data\detected",

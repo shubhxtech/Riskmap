@@ -262,16 +262,17 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
         self.model_combo = QtWidgets.QComboBox()
         self.model_combo.addItems(["Select Model...", "Faster R-CNN (Open Images)", "Custom Path..."])
         # Check if current config path matches default Faster R-CNN path or is custom
+        raw_path = self.config.get("BUILDING_DETECTION", "model_path", fallback="")
         current_path = str(self.config.get_bd_model_path())
         default_model_dir = str(self.config.get_model_save_folder())
         
         # Simple heuristic to set initial index
-        if "faster_rcnn" in current_path or current_path == default_model_dir:
-             self.model_combo.setCurrentIndex(1)
-        elif current_path and current_path != ".":
-             self.model_combo.setCurrentText("Custom Path...")
-        else:
+        if not raw_path:
              self.model_combo.setCurrentIndex(0)
+        elif "faster_rcnn" in current_path or current_path == default_model_dir:
+             self.model_combo.setCurrentIndex(1)
+        else:
+             self.model_combo.setCurrentText("Custom Path...")
 
         self.model_combo.currentIndexChanged.connect(self.on_model_combo_changed)
         params_layout.addRow("Model:", self.model_combo)
@@ -494,7 +495,7 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
 
         # 1) Update the UI widgets
         # self.model_path_edit.setText(rec["model_path"]) # No longer existing
-        self.model_combo.setCurrentIndex(1) # Default to Faster R-CNN
+        self.model_combo.setCurrentIndex(0) # Default to Select Model...
         self.target_classes_edit.setText(rec["target_classes"])
         self.output_dir_edit.setText(rec["output_dir"])
         self.threshold_spin.setValue(float(rec["threshold"]))
@@ -559,8 +560,23 @@ class BuildingDetectionWindow(QtWidgets.QWidget):
                  self.model_status_label.setText(str(default_save))
                  self._update_process_button_state()
             else:
-                 # Download
-                 self.download_faster_rcnn()
+                 # Ask user before downloading
+                 reply = QtWidgets.QMessageBox.question(
+                     self, "Model Not Found",
+                     "Faster R-CNN model was not found locally.\n"
+                     "Would you like to download it now?\n"
+                     f"(It will be saved to: {default_save})",
+                     QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
+                 )
+                 if reply == QtWidgets.QMessageBox.Yes:
+                     self.download_faster_rcnn()
+                 else:
+                     self.model_combo.blockSignals(True)
+                     self.model_combo.setCurrentIndex(0)
+                     self.model_combo.blockSignals(False)
+                     self.config.set_model_path("")
+                     self.model_status_label.setText("No model selected")
+                     self._update_process_button_state()
         
         elif index == 2: # Custom Path
              self.choose_model_dir()

@@ -296,6 +296,17 @@ class TrainWorker(QObject):
             else:
                 opt = self.trainer.Adam(learning_rate=self.lr)
 
+            # ── Safety check: force sparse loss for integer labels ────────
+            # image_dataset_from_directory returns integer (sparse) labels by default.
+            # Using 'categorical_crossentropy' with integer labels causes:
+            #   ValueError: Shapes (None,1) and (None,num_classes) are incompatible
+            if self.loss == "categorical_crossentropy":
+                self.log(
+                    "⚠ Overriding loss to 'sparse_categorical_crossentropy' — "
+                    "image_dataset_from_directory returns integer labels by default."
+                )
+                self.loss = "sparse_categorical_crossentropy"
+
             model.compile(
                 optimizer=opt,
                 loss=self.loss,
@@ -303,7 +314,7 @@ class TrainWorker(QObject):
             )
             self.log(f"Model compiled — params: {model.count_params():,}")
             self.progress_signal.emit(40)
-            self.log("Model compiled.")
+            self.log(f"Model compiled (loss={self.loss}).")
 
             # ── Callbacks ───────────────────────────────────────────────────
             class LogCallback(keras.callbacks.Callback):

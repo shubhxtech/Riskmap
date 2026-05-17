@@ -123,6 +123,10 @@ def cleanup_process(check_value, folder: Path):
 
 def save_image(image, path, logger=None):
     try:
+        if image is None or not hasattr(image, 'size') or image.size == 0:
+            if logger:
+                logger.log_status(f"Skipped saving empty/null image to {path}", "WARNING")
+            return False, path
         cv2.imwrite(str(path), image)
         if logger:
             logger.log_status(f"Saved image to {path}")

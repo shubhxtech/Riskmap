@@ -331,6 +331,10 @@ class RiskAssessmentPanel(QWidget):
 
         self.btn_load_results = QPushButton("📁  Load Output Folder…")
         self.btn_load_results.setCursor(Qt.PointingHandCursor)
+        self.btn_load_results.setToolTip(
+            "Load a pipeline output folder (GeoJSON/Excel) to plot\n"
+            "detected buildings on the map."
+        )
         self.btn_load_results.setStyleSheet(
             f"background:{ACCENT}; color:#fff; font-weight:700; border:none;"
             f"border-radius:8px; padding:9px 14px; font-size:12px;"
@@ -361,9 +365,13 @@ class RiskAssessmentPanel(QWidget):
         
         self.btn_load_csv = QPushButton("📂  Load Exposure CSV")
         self.btn_load_csv.setCursor(Qt.PointingHandCursor)
+        self.btn_load_csv.setToolTip(
+            "Load a CSV with columns: id, lat, lon, classification\n"
+            "(and optionally custom_site_id for actual PGA matching)."
+        )
         self.btn_load_csv.setStyleSheet(
-            f"background:{BG_CARD}; color:{TXT_MID}; border:1.5px solid {BORDER};"
-            f"border-radius:8px; padding:7px 14px; font-size:11px;"
+            f"background:#fff; color:{ACCENT}; border:2px solid {ACCENT};"
+            f"border-radius:8px; padding:7px 14px; font-size:11px; font-weight:600;"
         )
         self.btn_load_csv.clicked.connect(self.load_exposure_csv)
         
@@ -373,9 +381,13 @@ class RiskAssessmentPanel(QWidget):
         
         self.btn_load_pga = QPushButton("📂  Load PGA Actual CSV")
         self.btn_load_pga.setCursor(Qt.PointingHandCursor)
+        self.btn_load_pga.setToolTip(
+            "Load actual empirical PGA ground motion values CSV.\n"
+            "Must contain 'custom_site_id' and 'gmv_PGA' columns."
+        )
         self.btn_load_pga.setStyleSheet(
-            f"background:{BG_CARD}; color:{TXT_MID}; border:1.5px solid {BORDER};"
-            f"border-radius:8px; padding:7px 14px; font-size:11px;"
+            f"background:#fff; color:{TXT_HI}; border:2px solid {BORDER};"
+            f"border-radius:8px; padding:7px 14px; font-size:11px; font-weight:600;"
         )
         self.btn_load_pga.clicked.connect(self.load_pga_csv)
 
@@ -639,10 +651,16 @@ class RiskAssessmentPanel(QWidget):
                 self.buildings.append(bld)
                 
             self._update_exposure_label()
-            # Plot loaded CSV buildings on the map (matches RapidRisk behaviour)
+            # Plot loaded CSV buildings on the map with class-based coloring
             for b in self.buildings:
+                color = ("#3b82f6" if b.beit_class.startswith("RCC") else
+                         "#f97316" if b.beit_class.startswith("MR") else
+                         "#a855f7" if b.beit_class.startswith("AD") else
+                         "#8b5cf6" if b.beit_class.startswith("Metal") else
+                         "#84cc16" if b.beit_class.startswith("Timber") else
+                         "#9ca3af" if "Non_Building" in b.beit_class else "#00d4aa")
                 self.map_update_requested.emit(
-                    b.id, "#00d4aa", b.beit_class, b.lat, b.lon
+                    b.id, color, b.beit_class, b.lat, b.lon
                 )
             self._log(f"Loaded {len(self.buildings)} buildings from "
                       f"{os.path.basename(path)}")
