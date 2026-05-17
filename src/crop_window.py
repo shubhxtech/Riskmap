@@ -494,22 +494,22 @@ class CropWindow(QWidget):
         # UI controls for crop height
         controls_layout = QHBoxLayout()
         controls_layout.setSpacing(10)
-        self.use_custom_crop = QCheckBox("Use custom values?")
+        self.use_custom_crop = QCheckBox("Customize crop height")
         self.use_custom_crop.setChecked(False)
 
         self.height_input = QLineEdit()
         self.height_input.setText(str(self.config.get_blur_size()))
         self.height_input.setEnabled(False)
+        self.height_input.setPlaceholderText("pixels to remove from bottom")
 
-        self.save_crop_button = QPushButton("Save Crop Settings")
+        self.save_crop_button = QPushButton("✓  Save & Apply")
         self.save_crop_button.setEnabled(False)
 
-        self.height_check_btn = QPushButton()
-        self.height_check_btn.setText("Check with new values?")
+        self.height_check_btn = QPushButton("Preview")
         self.height_check_btn.setEnabled(False)
 
         controls_layout.addWidget(self.use_custom_crop)
-        controls_layout.addWidget(QLabel("Height:"))
+        controls_layout.addWidget(QLabel("Bottom strip (px):"))
         controls_layout.addWidget(self.height_input)
         controls_layout.addWidget(self.height_check_btn)
         controls_layout.addWidget(self.save_crop_button)
@@ -522,7 +522,14 @@ class CropWindow(QWidget):
         # Connect checkbox and save
         self.use_custom_crop.stateChanged.connect(self.toggle_crop_editing)
         self.save_crop_button.clicked.connect(self.save_crop_values)
-        self.height_check_btn.clicked.connect(lambda: self.image_view.update_crop_height(self.height_input.text()))
+        # Live preview: update crop line as user types
+        self.height_input.textChanged.connect(
+            lambda val: self.image_view.update_crop_height(val) if val.strip().isdigit() else None
+        )
+        # Preview button — also live-updates (kept for discoverability)
+        self.height_check_btn.clicked.connect(
+            lambda: self.image_view.update_crop_height(self.height_input.text())
+        )
 
         # Set main layout
         self.setLayout(self.layout)
@@ -611,20 +618,28 @@ class CropWindow(QWidget):
         self.height_input.setEnabled(editing)
         self.save_crop_button.setEnabled(editing)
         self.height_check_btn.setEnabled(editing)
-        
+
         if editing:
             self.image_view.stop_animation()
         else:
-            self.image_view.restart_animation()
+            # Re-enable animation flag FIRST so set_image() triggers restart_animation()
+            self.image_view.is_animating = True
+            # Reload images with the current saved blur height — triggers animation restart
+            self.update_image_display()
 
     def save_crop_values(self):
         try:
-            new_blur_height = self.height_input.text()
-            self.config.set_blur_size(new_blur_height)
+            new_blur_height = self.height_input.text().strip()
+            if not new_blur_height.isdigit():
+                self.logger.log_status("Invalid crop height — must be a whole number.")
+                return
 
-            # Reload all images so multi-image animation is preserved
-            self.update_image_display()
-            self.logger.log_status(f"Crop blur height updated to {new_blur_height}px")
+            self.config.set_blur_size(new_blur_height)
+            self.logger.log_status(f"Crop blur height saved: {new_blur_height}px")
+
+            # Uncheck the checkbox → triggers toggle_crop_editing(Unchecked)
+            # → restart_animation() fires automatically with the new height applied
+            self.use_custom_crop.setChecked(False)
 
         except Exception as e:
             self.logger.log_status(f"Failed to save crop values: {e}")
