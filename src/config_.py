@@ -87,10 +87,12 @@ class Config:
             self.parser["Duplicates"] = {
                 "source_folder": "data/detected",
                 "destination_parent_folder": "data/Duplicates",
+                "model_folder": "../assets/models/duplicate_checker",
+                "image_extensions": ".jpg,.jpeg,.png,.bmp,.tiff",
+                "batch_size": "200",
                 "img_size": "600,600",
                 "base_path": "data/duplicates",
-                "metadata_file_name": "metadata.json",
-                "model_folder": "../assets/models/duplicate_checker"
+                "metadata_file_name": "metadata.json"
             }
 
             self.parser["Classification"] = {

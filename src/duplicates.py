@@ -104,7 +104,7 @@ class DuplicateClassifier:
     def process_folder(self, folder_path: Path, progress_callback, viz_callback=None) -> float:
         start_time = time.time()
         specs = self.config.get_duplicates_data()
-        image_extensions = specs["image_extensions"].split(',')
+        image_extensions = specs.get("image_extensions", ".jpg,.jpeg,.png,.bmp,.tiff").split(',')
         images = sorted([p for p in folder_path.iterdir() if p.suffix.lower() in image_extensions])
 
         if not images:
