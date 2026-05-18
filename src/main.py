@@ -361,7 +361,7 @@ class MainApp(QMainWindow):
                 qta.icon('fa5s.chevron-up', color='#1DA1F2').pixmap(QSize(16, 16)).save(up_path)
         except Exception as e:
             logger.log_error(f"Failed to generate icons: {e}")
-
+#change
 # --- Launch App ---
 if __name__ == '__main__':
     import multiprocessing
