@@ -142,10 +142,9 @@ class ApiWindow(QWidget):
 
     def _show_api_key_dialog(self, path: Path):
         """
-        Show a non-blocking custom dialog for API key entry.
-        Using a proper QDialog with QLineEdit prevents the UI freeze
-        caused by QInputDialog.exec_() running before the main window
-        is fully painted.
+        Show a non-blocking dialog for API key entry.
+        Uses dialog.open() (not exec_()) so the Qt event loop keeps running
+        while the user types — eliminates all UI lag/freezing on first launch.
         """
         from PyQt5.QtWidgets import QDialog, QDialogButtonBox
 
@@ -153,6 +152,8 @@ class ApiWindow(QWidget):
         dialog.setWindowTitle("Google Maps API Key Required")
         dialog.setFixedWidth(480)
         dialog.setWindowFlags(dialog.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        # Keep dialog on top; prevent closing via backdrop click on some platforms
+        dialog.setModal(True)
 
         dlg_layout = QVBoxLayout(dialog)
         dlg_layout.setSpacing(12)
@@ -169,7 +170,7 @@ class ApiWindow(QWidget):
         lbl.setTextFormat(Qt.RichText)
         dlg_layout.addWidget(lbl)
 
-        # Key input field — QLineEdit supports Ctrl+V paste natively
+        # Key input — supports Ctrl+V paste natively, no lag
         key_input = QLineEdit()
         key_input.setPlaceholderText("AIza...")
         key_input.setMinimumHeight(36)
@@ -204,27 +205,32 @@ class ApiWindow(QWidget):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 with open(path, "w") as f:
                     f.write(f"API_KEY={api_key}\n")
-                print("Wrote API key to", path)
             except Exception as e:
                 self.logger.log_exception(f"Failed to write API key: {e}")
                 err_lbl.setText(f"⚠  Could not save key: {e}")
                 err_lbl.setVisible(True)
                 return
-            # Inject directly into os.environ so load_dotenv failures don't matter
+            # Inject directly into os.environ
             os.environ["API_KEY"] = api_key
             dialog.accept()
 
+        def _on_done():
+            """Called on both Accept and Cancel — always attempt map setup."""
+            load_dotenv(dotenv_path=path, override=True)
+            self.setup_map()
+
         btn_box.accepted.connect(_on_accept)
         btn_box.rejected.connect(dialog.reject)
+        dialog.accepted.connect(_on_done)
+        dialog.rejected.connect(_on_done)
 
-        # Focus the input so the user can paste immediately
+        # Focus input so user can type/paste immediately
         key_input.setFocus()
 
-        result = dialog.exec_()
-        # Whether accepted or cancelled, attempt map setup
-        # (setup_map will validate and show an appropriate error if key is missing)
-        load_dotenv(dotenv_path=path, override=True)
-        self.setup_map()
+        # --- KEY FIX: open() is non-blocking; event loop keeps running ---
+        dialog.open()
+
+
 
 
 
