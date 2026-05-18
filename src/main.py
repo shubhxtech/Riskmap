@@ -95,7 +95,7 @@ class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
         name_stats = config.get_general_data()
-        self.setWindowTitle(name_stats["name_of_main_app"])
+        self.setWindowTitle("RiskMap")
         self.center_window()
 
         # Central widget and layout

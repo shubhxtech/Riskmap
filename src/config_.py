@@ -39,7 +39,7 @@ class Config:
         """
         try:
             self.parser["General"] = {
-                "name_of_main_app": "ML Assist",
+                "name_of_main_app": "RiskMap",
                 "version": "1.0.0",
                 "allowed_file_types": ".jpg,.png,.jpeg",
                 "size_of_images": "2048,1024",
