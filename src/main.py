@@ -367,6 +367,14 @@ if __name__ == '__main__':
     import multiprocessing
     multiprocessing.freeze_support()
     
+    # Fix for QtWebEngine black screen on some Windows hardware (especially CPU-only)
+    if sys.platform == 'win32':
+        from PyQt5.QtCore import QCoreApplication, Qt
+        # Force software rendering for Qt WebEngine
+        QCoreApplication.setAttribute(Qt.AA_UseSoftwareOpenGL)
+        # Pass flags to embedded Chromium to disable GPU compositing
+        os.environ["QTWEBENGINE_CHROMIUM_FLAGS"] = "--disable-gpu --disable-gpu-compositing"
+
     app = QApplication(sys.argv)
     
     # Resolve icon path for stylesheet
