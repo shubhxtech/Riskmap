@@ -293,9 +293,24 @@ class Classify:
         image_files = []
         self.logger.log_status(f"Getting all images in folder {self.input_folder}")
         for f in self.input_folder.glob("*"):
-            self.logger.log_status(f"Found image: {f}")
             if f.suffix.lower() in self.image_extensions:
                 image_files.append(f)
+
+        # Smart fallback: check if 'Unique' subfolder (created by Duplicates filter) exists
+        if not image_files:
+            unique_subfolder = self.input_folder / "Unique"
+            if unique_subfolder.is_dir():
+                self.logger.log_status(f"No images found directly in {self.input_folder}. Looking inside 'Unique' folder...")
+                for f in unique_subfolder.glob("*"):
+                    if f.suffix.lower() in self.image_extensions:
+                        image_files.append(f)
+
+        # Recursive fallback: if still empty, find all matching files recursively
+        if not image_files:
+            self.logger.log_status(f"No images found. Performing recursive search in {self.input_folder}...")
+            for f in self.input_folder.rglob("*"):
+                if f.is_file() and f.suffix.lower() in self.image_extensions:
+                    image_files.append(f)
 
         self.logger.log_status(f"Found {len(image_files)} images to classify")
 
