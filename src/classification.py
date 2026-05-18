@@ -178,6 +178,14 @@ class Classify:
                         "Check internet connection or run with a cached copy."
                     )
 
+        if not os.path.exists(model_path):
+            raise FileNotFoundError(
+                f"Model file not found at exact path:\n{os.path.abspath(model_path)}\n\n"
+                f"Troubleshooting on Windows:\n"
+                f"1. Make sure you placed it in the ROOT 'assets' folder, NOT 'src/assets'\n"
+                f"2. Windows hides file extensions by default. Your file might actually be named 'best_model.pth.pth'."
+            )
+
         # Load weights with safe cross-platform map_location
         try:
             checkpoint = torch.load(
