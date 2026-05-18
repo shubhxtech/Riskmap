@@ -783,6 +783,10 @@ class ClassificationWindow(QtWidgets.QWidget):
         self.timer_thread.start()
 
         check_value = self.remove_checkbox.isChecked()
+        # Synchronize UI input/output folder text fields to the processor
+        self.processor.parent_folder = self.input_folder_input.text()
+        self.processor.output_folder = self.output_folder_input.text()
+        
         self.worker = _ClassificationWorker(self.processor, check_value, self.selected_model, self.labels, self.output_folder_input.text())
         self.worker.progress_updated.connect(self.update_progress)
         self.worker.message_logged.connect(self.log_to_output)
